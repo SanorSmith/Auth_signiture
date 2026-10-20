@@ -1,1 +1,31 @@
-# Auth_signiture
+# Auth Signature
+
+Verification codes for scanned client numbers. Next.js + Neon Postgres.
+
+## Flow
+
+1. **Client** logs in and presses "Get my code". The server creates a random 10-digit number and shows it once, as text and as a Code128 barcode. Only a keyed hash (HMAC-SHA256) is stored, never the number.
+2. **Admin** enters the number. The server hashes it and attaches the next verification code (one letter + 5 digits, `A00000`–`Z99999`). Entering the same number again returns the same code.
+3. **Monitor** user scans the number with a Zebra scanner (keyboard/HID or DataWedge mode, ends with Enter) and the page shows the verification code.
+
+Verification codes come from a database counter pushed through a bijective map, so none repeats until all 2,600,000 are used; the cycle then restarts.
+
+## Setup
+
+```
+npm install
+cp .env.example .env.local   # fill in DATABASE_URL, CODE_HMAC_SECRET, SESSION_SECRET
+npm run dev
+```
+
+Create the first user (roles: `admin`, `client`, `monitor`); after that, admins create users from the Admin page:
+
+```
+node --env-file=.env.local scripts/create-user.mjs admin@example.com 'a-strong-password' admin
+```
+
+Keep `CODE_HMAC_SECRET` stable: changing it makes every existing number unrecognisable.
+
+## Schema
+
+`users`, `codes (code_hash)`, `verifications (code_hash, vcode, issue_date)` and the sequence `vcode_counter`.
