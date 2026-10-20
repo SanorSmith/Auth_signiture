@@ -57,7 +57,10 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
     LEFT JOIN verifications v ON v.code_hash = c.code_hash WHERE c.code_hash = ${h}`;
   if (found.length) {
     if (found[0].client_id !== s.uid) return { error: "This number has already been requested" };
-    return found[0].vcode ? { vcode: found[0].vcode.trim() } : { ok: "Already requested, waiting for the admin" };
+    // Re-scanning your own number makes it the one the client page shows.
+    await sql`UPDATE codes SET last_scanned_at = now() WHERE code_hash = ${h}`;
+    revalidatePath("/client");
+    return { ok: found[0].vcode ? "Verification code shown below" : "Already requested, waiting for the admin" };
   }
   const ins = await sql`
     INSERT INTO codes (code_hash, client_id, pending_enc) VALUES (${h}, ${s.uid}, ${encryptPending(code)})

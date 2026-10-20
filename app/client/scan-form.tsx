@@ -32,9 +32,6 @@ export function ScanForm() {
       {pending && <p className="text-neutral-500">Sending…</p>}
       {!pending && state?.ok && <p className="text-green-600">{state.ok}</p>}
       {!pending && state?.error && <p className="text-red-600">{state.error}</p>}
-      {!pending && state?.vcode && (
-        <p className="rounded border p-4 font-mono text-4xl tracking-widest">{state.vcode}</p>
-      )}
     </div>
   );
 }
