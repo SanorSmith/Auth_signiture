@@ -2,10 +2,11 @@
 
 import bcrypt from "bcryptjs";
 import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { sql } from "./db";
 import { blockedFor, clear, recordFailure } from "./ratelimit";
-import { CODE_RE, generateCode10, hashCode, vcodeFromCounter } from "./codes";
+import { CODE_RE, encryptPending, hashCode, vcodeFromCounter } from "./codes";
 import { createSession, destroySession, homeFor, requireRole, type Role } from "./session";
 
 export type State = { error?: string; code?: string; vcode?: string; ok?: string } | null;
@@ -43,40 +44,44 @@ export async function logout() {
   redirect("/login");
 }
 
-// Client: mint a code. Only its keyed hash is stored; the number is shown once.
-export async function createClientCode(): Promise<State> {
+// Client: scan a 10-digit number to request its verification code. The number is kept
+// encrypted only until the admin issues the code; afterwards just its keyed hash remains.
+export async function requestVerification(_: State, form: FormData): Promise<State> {
   const s = await requireRole("client");
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const code = generateCode10();
-    const rows = await sql`
-      INSERT INTO codes (code_hash, client_id) VALUES (${hashCode(code)}, ${s.uid})
-      ON CONFLICT (code_hash) DO NOTHING RETURNING id`;
-    if (rows.length) return { code };
-  }
-  return { error: "Could not generate a code, try again" };
-}
-
-// Admin: attach the next verification code to a client's number (idempotent).
-export async function issueVerification(_: State, form: FormData): Promise<State> {
-  const s = await requireRole("admin");
   const code = String(form.get("code") ?? "").trim();
-  if (!CODE_RE.test(code)) return { error: "Enter the 10-digit number" };
+  if (!CODE_RE.test(code)) return { error: "Not a valid 10-digit number" };
   const h = hashCode(code);
 
-  const known = await sql`SELECT 1 FROM codes WHERE code_hash = ${h}`;
-  if (!known.length) return { error: "No client has been given this number" };
-
-  const existing = await sql`SELECT vcode FROM verifications WHERE code_hash = ${h}`;
-  if (existing.length) return { vcode: existing[0].vcode.trim() };
-
-  const [{ n }] = await sql`SELECT nextval('vcode_counter')::float8 AS n`;
-  const vcode = vcodeFromCounter(Number(n));
+  const found = await sql`
+    SELECT c.client_id, v.vcode FROM codes c
+    LEFT JOIN verifications v ON v.code_hash = c.code_hash WHERE c.code_hash = ${h}`;
+  if (found.length) {
+    if (found[0].client_id !== s.uid) return { error: "This number has already been requested" };
+    return found[0].vcode ? { vcode: found[0].vcode.trim() } : { ok: "Already requested, waiting for the admin" };
+  }
   const ins = await sql`
-    INSERT INTO verifications (code_hash, vcode, issued_by) VALUES (${h}, ${vcode}, ${s.uid})
-    ON CONFLICT (code_hash) DO NOTHING RETURNING vcode`;
-  if (ins.length) return { vcode };
-  const again = await sql`SELECT vcode FROM verifications WHERE code_hash = ${h}`;
-  return { vcode: again[0].vcode.trim() };
+    INSERT INTO codes (code_hash, client_id, pending_enc) VALUES (${h}, ${s.uid}, ${encryptPending(code)})
+    ON CONFLICT (code_hash) DO NOTHING RETURNING id`;
+  revalidatePath("/client");
+  return ins.length ? { ok: "Request sent, waiting for the admin" } : { error: "This number has already been requested" };
+}
+
+// Admin: generate the next letter + 5 digit code for a pending request, then wipe the stored number.
+export async function issueRequest(form: FormData) {
+  const s = await requireRole("admin");
+  const id = Number(form.get("id"));
+  if (!Number.isInteger(id)) return;
+  const rows = await sql`
+    SELECT c.code_hash FROM codes c
+    LEFT JOIN verifications v ON v.code_hash = c.code_hash WHERE c.id = ${id} AND v.id IS NULL`;
+  if (!rows.length) return;
+  const [{ n }] = await sql`SELECT nextval('vcode_counter')::float8 AS n`;
+  await sql`
+    INSERT INTO verifications (code_hash, vcode, issued_by)
+    VALUES (${rows[0].code_hash}, ${vcodeFromCounter(Number(n))}, ${s.uid})
+    ON CONFLICT (code_hash) DO NOTHING`;
+  await sql`UPDATE codes SET pending_enc = NULL WHERE id = ${id}`;
+  revalidatePath("/admin");
 }
 
 // Monitor (and admin): scan the 10-digit number, get the verification code.
@@ -85,7 +90,7 @@ export async function lookupVerification(_: State, form: FormData): Promise<Stat
   const code = String(form.get("code") ?? "").trim();
   if (!CODE_RE.test(code)) return { error: "Not a valid 10-digit number" };
   const rows = await sql`SELECT vcode FROM verifications WHERE code_hash = ${hashCode(code)}`;
-  if (!rows.length) return { error: "No verification code issued for this number" };
+  if (!rows.length) return { error: "No verification code issued for this number yet" };
   return { vcode: rows[0].vcode.trim() };
 }
 

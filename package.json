@@ -14,7 +14,6 @@
     "jose": "^6.2.13",
     "next": "16.4.2",
     "react": "19.3.0",
-    "react-barcode": "^1.6.1",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
