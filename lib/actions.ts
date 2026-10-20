@@ -1,22 +1,39 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "./db";
+import { blockedFor, clear, recordFailure } from "./ratelimit";
 import { CODE_RE, generateCode10, hashCode, vcodeFromCounter } from "./codes";
 import { createSession, destroySession, homeFor, requireRole, type Role } from "./session";
 
 export type State = { error?: string; code?: string; vcode?: string; ok?: string } | null;
 
+const LOGIN_PER_EMAIL = 5;
+const LOGIN_PER_IP = 20;
+
 export async function login(_: State, form: FormData): Promise<State> {
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const password = String(form.get("password") ?? "");
+
+  const h = await headers();
+  const ip = h.get("x-real-ip") ?? h.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+  const emailKey = `login:${ip}:${email}`;
+  const ipKey = `login-ip:${ip}`;
+  const wait = Math.max(await blockedFor(emailKey, LOGIN_PER_EMAIL), await blockedFor(ipKey, LOGIN_PER_IP));
+  if (wait) return { error: `Too many attempts. Try again in ${Math.ceil(wait / 60)} min.` };
+
   const rows = await sql`SELECT id, password_hash, role FROM users WHERE email = ${email}`;
   const u = rows[0];
   // Compare even when the user is missing so response time doesn't reveal valid emails.
   const hash = u?.password_hash ?? "$2b$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvali";
   const ok = await bcrypt.compare(password, hash);
-  if (!u || !ok) return { error: "Wrong email or password" };
+  if (!u || !ok) {
+    await Promise.all([recordFailure(emailKey), recordFailure(ipKey)]);
+    return { error: "Wrong email or password" };
+  }
+  await clear(emailKey);
   await createSession({ uid: u.id, email, role: u.role as Role });
   redirect(homeFor(u.role as Role));
 }
