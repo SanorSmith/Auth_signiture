@@ -17,9 +17,6 @@ export const metadata: Metadata = {
   description: "Verification codes for scanned client numbers",
 };
 
-// Every page depends on the signed-in user, so none can be prerendered.
-export const instant = false;
-
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
