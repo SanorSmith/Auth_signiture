@@ -52,7 +52,8 @@ export function Scanner() {
         {!pending && state?.vcode && (
           <>
             <p className="text-xs font-medium uppercase tracking-wider text-success">Verification code</p>
-            <p className="break-all font-mono text-6xl font-bold tracking-widest text-success sm:text-8xl">{state.vcode}</p>
+            {/* Scales with the screen width so the 6 characters always fit, even on small handhelds. */}
+            <p className="whitespace-nowrap font-mono text-[clamp(2rem,15vw,6rem)] font-bold tracking-widest text-success">{state.vcode}</p>
           </>
         )}
         {!pending && state?.error && (

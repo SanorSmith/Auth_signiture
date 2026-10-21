@@ -16,7 +16,7 @@ export default async function UsersPage() {
     <Shell title="Users" description="Create accounts, change roles and reset passwords." email={me.email} role={me.role} width="lg">
       <AutoRefresh seconds={10} />
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_20rem]">
-        <section className="flex flex-col gap-3">
+        <section className="flex min-w-0 flex-col gap-3">
           <h2 className="font-semibold">All users <span className="font-normal text-muted">({users.length})</span></h2>
           {users.map((u) => (
             <UserRow
@@ -30,7 +30,7 @@ export default async function UsersPage() {
             />
           ))}
         </section>
-        <section className="card p-5 lg:sticky lg:top-20">
+        <section className="card min-w-0 p-5 lg:sticky lg:top-20">
           <h2 className="mb-1 font-semibold">Add user</h2>
           <p className="mb-4 text-sm text-muted">They choose their own password when they first sign in.</p>
           <CreateUserForm />

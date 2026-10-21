@@ -41,7 +41,8 @@ export default async function ClientPage() {
         {latest?.vcode && (
           <section className="card bg-accent-soft p-6 text-center sm:p-8">
             <p className="text-xs font-medium uppercase tracking-wider text-muted">Your verification code</p>
-            <p className="mt-2 break-all font-mono text-6xl font-bold tracking-widest text-accent sm:text-8xl">{latest.vcode.trim()}</p>
+            {/* Scales with the screen width so the 6 characters always fit, even on small handhelds. */}
+            <p className="mt-2 whitespace-nowrap font-mono text-[clamp(2rem,15vw,6rem)] font-bold tracking-widest text-accent">{latest.vcode.trim()}</p>
           </section>
         )}
 

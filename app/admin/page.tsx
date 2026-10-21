@@ -69,7 +69,7 @@ export default async function AdminPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-5">
-          <section className="flex flex-col gap-3 lg:col-span-3">
+          <section className="flex min-w-0 flex-col gap-3 lg:col-span-3">
             <h2 className="font-semibold">Pending requests</h2>
             {pending.length === 0 && (
               <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">Nothing waiting. New scans appear here.</p>
@@ -97,7 +97,7 @@ export default async function AdminPage() {
             ))}
           </section>
 
-          <section className="flex flex-col gap-3 lg:col-span-2">
+          <section className="flex min-w-0 flex-col gap-3 lg:col-span-2">
             <h2 className="font-semibold">Last 3 issued</h2>
             {issued.length === 0 && (
               <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">Nothing issued yet.</p>
