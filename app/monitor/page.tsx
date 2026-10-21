@@ -6,7 +6,7 @@ export default async function MonitorPage() {
   const s = await requireRole("monitor");
   return (
     <>
-      <Header title="Monitor" email={s.email} />
+      <Header title="Monitor" email={s.email} role={s.role} />
       <Scanner />
     </>
   );

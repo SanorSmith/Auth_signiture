@@ -9,6 +9,7 @@ export const VCODE_SPACE = LETTERS * DIGITS;
 const MULTIPLIER = 1_234_567;
 
 export const CODE_RE = /^\d{10}$/;
+export const NOTE_MAX = 50;
 
 function secret() {
   const s = process.env.CODE_HMAC_SECRET;

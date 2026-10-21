@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { sql } from "./db";
 import { blockedFor, clear, recordFailure } from "./ratelimit";
-import { CODE_RE, encryptPending, hashCode, vcodeFromCounter } from "./codes";
+import { CODE_RE, NOTE_MAX, encryptPending, hashCode, vcodeFromCounter } from "./codes";
 import { createSession, destroySession, homeFor, requireRole, type Role } from "./session";
 
 export type State = { error?: string; code?: string; vcode?: string; ok?: string } | null;
@@ -25,7 +25,7 @@ export async function login(_: State, form: FormData): Promise<State> {
   const wait = Math.max(await blockedFor(emailKey, LOGIN_PER_EMAIL), await blockedFor(ipKey, LOGIN_PER_IP));
   if (wait) return { error: `Too many attempts. Try again in ${Math.ceil(wait / 60)} min.` };
 
-  const rows = await sql`SELECT id, password_hash, role FROM users WHERE email = ${email}`;
+  const rows = await sql`SELECT id, password_hash, role, token_version, must_change FROM users WHERE email = ${email}`;
   const u = rows[0];
   // Compare even when the user is missing so response time doesn't reveal valid emails.
   const hash = u?.password_hash ?? "$2b$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvali";
@@ -35,8 +35,8 @@ export async function login(_: State, form: FormData): Promise<State> {
     return { error: "Wrong email or password" };
   }
   await clear(emailKey);
-  await createSession({ uid: u.id, email, role: u.role as Role });
-  redirect(homeFor(u.role as Role));
+  await createSession({ uid: u.id, email, role: u.role as Role, v: u.token_version });
+  redirect(u.must_change ? "/account" : homeFor(u.role as Role));
 }
 
 export async function logout() {
@@ -50,6 +50,7 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
   const s = await requireRole("client");
   const code = String(form.get("code") ?? "").trim();
   if (!CODE_RE.test(code)) return { error: "Not a valid 10-digit number" };
+  const note = String(form.get("note") ?? "").trim().slice(0, NOTE_MAX) || null;
   const h = hashCode(code);
 
   const found = await sql`
@@ -58,12 +59,12 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
   if (found.length) {
     if (found[0].client_id !== s.uid) return { error: "This number has already been requested" };
     // Re-scanning your own number makes it the one the client page shows.
-    await sql`UPDATE codes SET last_scanned_at = now() WHERE code_hash = ${h}`;
+    await sql`UPDATE codes SET last_scanned_at = now(), note = COALESCE(${note}, note) WHERE code_hash = ${h}`;
     revalidatePath("/client");
     return { ok: found[0].vcode ? "Verification code shown below" : "Already requested, waiting for the admin" };
   }
   const ins = await sql`
-    INSERT INTO codes (code_hash, client_id, pending_enc) VALUES (${h}, ${s.uid}, ${encryptPending(code)})
+    INSERT INTO codes (code_hash, client_id, pending_enc, note) VALUES (${h}, ${s.uid}, ${encryptPending(code)}, ${note})
     ON CONFLICT (code_hash) DO NOTHING RETURNING id`;
   revalidatePath("/client");
   return ins.length ? { ok: "Request sent, waiting for the admin" } : { error: "This number has already been requested" };
@@ -97,16 +98,3 @@ export async function lookupVerification(_: State, form: FormData): Promise<Stat
   return { vcode: rows[0].vcode.trim() };
 }
 
-export async function createUser(_: State, form: FormData): Promise<State> {
-  await requireRole("admin");
-  const email = String(form.get("email") ?? "").trim().toLowerCase();
-  const password = String(form.get("password") ?? "");
-  const role = String(form.get("role") ?? "");
-  if (!/^\S+@\S+\.\S+$/.test(email)) return { error: "Invalid email" };
-  if (password.length < 8) return { error: "Password must be at least 8 characters" };
-  if (!["admin", "client", "monitor"].includes(role)) return { error: "Invalid role" };
-  const rows = await sql`
-    INSERT INTO users (email, password_hash, role) VALUES (${email}, ${await bcrypt.hash(password, 10)}, ${role})
-    ON CONFLICT (email) DO NOTHING RETURNING id`;
-  return rows.length ? { ok: `Created ${role} ${email}` } : { error: "Email already exists" };
-}
