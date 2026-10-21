@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { requestVerification } from "@/lib/actions";
 import { NOTE_MAX } from "@/lib/codes";
+import { ScanInput } from "../scan-input";
 
 // A Zebra scanner in keyboard (HID / DataWedge) mode types the digits and presses Enter.
 // Type the note first, then scan: the scan submits the request together with the note.
@@ -12,10 +13,6 @@ export function ScanForm() {
   const [note, setNote] = useState("");
 
   useEffect(() => {
-    if (code.current) {
-      code.current.value = "";
-      code.current.focus();
-    }
     if (state?.ok) setNote("");
   }, [state]);
 
@@ -44,20 +41,7 @@ export function ScanForm() {
           className="input"
         />
       </div>
-      <div>
-        <label htmlFor="code" className="label">10-digit number</label>
-        <input
-          id="code"
-          ref={code}
-          name="code"
-          autoFocus
-          autoComplete="off"
-          inputMode="numeric"
-          maxLength={10}
-          placeholder="Scan or type the number"
-          className="input py-3 text-center font-mono text-lg tracking-widest placeholder:font-sans placeholder:text-sm placeholder:tracking-normal"
-        />
-      </div>
+      <ScanInput id="code" name="code" label="10-digit number" placeholder="Scan the number" inputRef={code} resetKey={state} />
       {/* With two text inputs, Enter (the scanner's suffix) only submits when a submit button exists. */}
       <button disabled={pending} className="btn btn-primary">{pending ? "Sending…" : "Send request"}</button>
       {!pending && state?.ok && <p role="status" className="alert alert-success">{state.ok}</p>}
