@@ -20,47 +20,48 @@ export function ScanForm() {
   }, [state]);
 
   return (
-    <div className="flex w-full flex-col items-center gap-3">
-      <form action={action} className="flex w-full flex-col gap-2">
-        <div className="relative">
-          <input
-            name="note"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            onKeyDown={(e) => {
-              // Enter in the note box moves on to the scan box instead of submitting.
-              if (e.key === "Enter") {
-                e.preventDefault();
-                code.current?.focus();
-              }
-            }}
-            maxLength={NOTE_MAX}
-            autoComplete="off"
-            placeholder="Describe this request (optional)"
-            className="w-full rounded border bg-transparent px-3 py-2 pr-14"
-          />
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-neutral-500">
-            {note.length}/{NOTE_MAX}
-          </span>
+    <form action={action} className="flex flex-col gap-4">
+      <div>
+        <div className="flex items-baseline justify-between">
+          <label htmlFor="note" className="label">Note <span className="font-normal">(optional)</span></label>
+          <span className="mb-1 text-xs text-muted">{note.length}/{NOTE_MAX}</span>
         </div>
         <input
+          id="note"
+          name="note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter in the note box moves on to the scan box instead of submitting.
+            if (e.key === "Enter") {
+              e.preventDefault();
+              code.current?.focus();
+            }
+          }}
+          maxLength={NOTE_MAX}
+          autoComplete="off"
+          placeholder="What is this request for?"
+          className="input"
+        />
+      </div>
+      <div>
+        <label htmlFor="code" className="label">10-digit number</label>
+        <input
+          id="code"
           ref={code}
           name="code"
           autoFocus
           autoComplete="off"
           inputMode="numeric"
           maxLength={10}
-          placeholder="Scan the 10-digit number"
-          className="w-full rounded border bg-transparent px-3 py-2 text-center font-mono text-lg"
+          placeholder="Scan or type the number"
+          className="input py-3 text-center font-mono text-lg tracking-widest placeholder:font-sans placeholder:text-sm placeholder:tracking-normal"
         />
-        {/* With two text inputs, Enter (the scanner's suffix) only submits when a submit button exists. */}
-        <button disabled={pending} className="rounded bg-black px-3 py-2 text-white disabled:opacity-50 dark:bg-white dark:text-black">
-          Send request
-        </button>
-      </form>
-      {pending && <p className="text-neutral-500">Sending…</p>}
-      {!pending && state?.ok && <p className="text-green-600">{state.ok}</p>}
-      {!pending && state?.error && <p className="text-red-600">{state.error}</p>}
-    </div>
+      </div>
+      {/* With two text inputs, Enter (the scanner's suffix) only submits when a submit button exists. */}
+      <button disabled={pending} className="btn btn-primary">{pending ? "Sending…" : "Send request"}</button>
+      {!pending && state?.ok && <p role="status" className="alert alert-success">{state.ok}</p>}
+      {!pending && state?.error && <p role="alert" className="alert alert-error">{state.error}</p>}
+    </form>
   );
 }

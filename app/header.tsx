@@ -1,37 +1,41 @@
 import Link from "next/link";
 import { logout } from "@/lib/actions";
 import { sql } from "@/lib/db";
-import type { Role } from "@/lib/session";
+import { homeFor, type Role } from "@/lib/session";
+import { Brand } from "./brand";
+import { NavLink } from "./nav-link";
 
-const link = "rounded px-2 py-1 hover:bg-neutral-100 dark:hover:bg-neutral-800";
+const homeLabel: Record<Role, string> = { admin: "Requests", client: "Requests", monitor: "Monitor" };
 
-export async function Header({ title, email, role }: { title: string; email: string; role: Role }) {
+export async function Header({ email, role }: { email: string; role: Role }) {
   let resets = 0;
   if (role === "admin") {
     const rows = await sql`SELECT count(*)::int AS n FROM reset_requests WHERE handled_at IS NULL`;
     resets = rows[0].n;
   }
   return (
-    <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 sm:px-6">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <h1 className="text-lg font-semibold">{title}</h1>
-        {role === "admin" && (
-          <nav className="flex items-center gap-1 text-sm">
-            <Link href="/admin" className={link}>Requests</Link>
-            <Link href="/admin/users" className={link}>
+    <header className="sticky top-0 z-10 border-b border-line bg-surface/85 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-3 sm:gap-3 sm:px-6">
+        <Link href={homeFor(role)} aria-label="Home" className="shrink-0">
+          <Brand />
+        </Link>
+        <nav className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] sm:ml-4 sm:gap-1 [&::-webkit-scrollbar]:hidden">
+          <NavLink href={homeFor(role)} exact>{homeLabel[role]}</NavLink>
+          {role === "admin" && (
+            <NavLink href="/admin/users">
               Users
               {resets > 0 && (
-                <span className="ml-1 rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white" title="Password reset requests">{resets}</span>
+                <span className="badge ml-1.5 bg-danger text-white" title="Password reset requests waiting">{resets}</span>
               )}
-            </Link>
-          </nav>
-        )}
+            </NavLink>
+          )}
+          <NavLink href="/account">Account</NavLink>
+        </nav>
+        <form action={logout} className="flex shrink-0 items-center gap-3">
+          <span className="hidden max-w-48 truncate text-xs text-muted md:block">{email}</span>
+          <button className="btn btn-secondary btn-sm">Log out</button>
+        </form>
       </div>
-      <form action={logout} className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="max-w-40 truncate text-neutral-500 sm:max-w-none">{email}</span>
-        <Link href="/account" className={link}>Change password</Link>
-        <button className="rounded border px-3 py-1 hover:bg-neutral-100 dark:hover:bg-neutral-800">Log out</button>
-      </form>
     </header>
   );
 }

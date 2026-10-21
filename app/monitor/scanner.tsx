@@ -9,48 +9,60 @@ import { lookupVerification } from "@/lib/actions";
 export function Scanner() {
   const [state, action, pending] = useActionState(lookupVerification, null);
   const input = useRef<HTMLInputElement>(null);
-  const form = useRef<HTMLFormElement>(null);
 
-  const refocus = () => {
+  useEffect(() => {
     if (input.current) {
       input.current.value = "";
       input.current.focus();
     }
-  };
-
-  useEffect(() => {
-    refocus();
-    const t = setTimeout(refocus, 0);
-    return () => clearTimeout(t);
   }, [state]);
 
   return (
-    <main
-      className="flex min-h-[70vh] flex-col items-center justify-center gap-6 p-6"
+    <div
+      className="flex flex-col gap-5"
       onClick={(e) => e.target === e.currentTarget && input.current?.focus()}
     >
-      <form ref={form} action={action} className="flex w-full max-w-sm flex-col gap-3">
-        <input
-          ref={input}
-          name="code"
-          autoFocus
-          autoComplete="off"
-          inputMode="numeric"
-          pattern="\d{10}"
-          maxLength={10}
-          placeholder="Scan or type the 10-digit code"
-          className="w-full rounded border bg-transparent px-3 py-2 text-center font-mono text-lg"
-        />
-        <button disabled={pending} className="rounded bg-black px-3 py-2 text-white disabled:opacity-50 dark:bg-white dark:text-black">
-          Show code
-        </button>
+      <form action={action} className="card flex flex-col gap-3 p-5 sm:flex-row sm:items-end sm:p-6">
+        <div className="flex-1">
+          <label htmlFor="code" className="label">10-digit number</label>
+          <input
+            id="code"
+            ref={input}
+            name="code"
+            autoFocus
+            autoComplete="off"
+            inputMode="numeric"
+            pattern="\d{10}"
+            maxLength={10}
+            placeholder="Scan or type the number"
+            className="input py-3 text-center font-mono text-lg tracking-widest placeholder:font-sans placeholder:text-sm placeholder:tracking-normal"
+          />
+        </div>
+        <button disabled={pending} className="btn btn-primary py-3 sm:px-6">Show code</button>
       </form>
-      {pending && <p className="text-neutral-500">Looking up…</p>}
-      {!pending && state?.vcode && (
-        <p className="font-mono text-8xl font-bold tracking-widest">{state.vcode}</p>
-      )}
-      {!pending && state?.error && <p className="text-2xl text-red-600">{state.error}</p>}
-      {!state && !pending && <p className="text-neutral-500">Waiting for a scan…</p>}
-    </main>
+
+      <section
+        role="status"
+        aria-live="polite"
+        className={`card flex min-h-64 flex-col items-center justify-center gap-2 p-6 text-center sm:min-h-80 ${
+          state?.vcode ? "border-success/40 bg-success-soft" : ""
+        }`}
+      >
+        {pending && <p className="text-muted">Looking up…</p>}
+        {!pending && state?.vcode && (
+          <>
+            <p className="text-xs font-medium uppercase tracking-wider text-success">Verification code</p>
+            <p className="break-all font-mono text-6xl font-bold tracking-widest text-success sm:text-8xl">{state.vcode}</p>
+          </>
+        )}
+        {!pending && state?.error && (
+          <>
+            <p className="text-xs font-medium uppercase tracking-wider text-warn">Not available</p>
+            <p className="text-xl font-medium">{state.error}</p>
+          </>
+        )}
+        {!pending && !state && <p className="text-muted">Ready. Waiting for a scan…</p>}
+      </section>
+    </div>
   );
 }
