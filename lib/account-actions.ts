@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { sql } from "./db";
 import { blockedFor, clear, recordFailure } from "./ratelimit";
-import { createSession, homeFor, requireUser } from "./session";
+import { homeFor } from "./permissions";
+import { createSession, requireUser } from "./session";
 import type { State } from "./actions";
 
 // Any signed-in user changes their own password; this also clears a forced change after an admin reset.
@@ -36,7 +37,7 @@ export async function changePassword(_: State, form: FormData): Promise<State> {
   // Other sessions are signed out by the version bump; keep this one.
   await createSession({ uid: me.uid, email: me.email, role: me.role, v: updated[0].token_version });
   revalidatePath("/", "layout");
-  redirect(homeFor(me.role));
+  redirect(homeFor(me.perms));
 }
 
 // Public: asks the admin to reset an account's password. The answer never reveals whether the email exists.

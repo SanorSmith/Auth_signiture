@@ -7,7 +7,8 @@ import { redirect } from "next/navigation";
 import { sql } from "./db";
 import { blockedFor, clear, recordFailure } from "./ratelimit";
 import { CODE_RE, NOTE_MAX, encryptPending, hashCode, vcodeFromCounter } from "./codes";
-import { createSession, destroySession, homeFor, requireRole, type Role } from "./session";
+import { effectivePermissions, homeFor } from "./permissions";
+import { createSession, destroySession, requirePermission } from "./session";
 
 export type State = { error?: string; code?: string; vcode?: string; ok?: string } | null;
 
@@ -25,7 +26,7 @@ export async function login(_: State, form: FormData): Promise<State> {
   const wait = Math.max(await blockedFor(emailKey, LOGIN_PER_EMAIL), await blockedFor(ipKey, LOGIN_PER_IP));
   if (wait) return { error: `Too many attempts. Try again in ${Math.ceil(wait / 60)} min.` };
 
-  const rows = await sql`SELECT id, password_hash, role, token_version, must_change FROM users WHERE email = ${email}`;
+  const rows = await sql`SELECT id, password_hash, role, permissions, token_version, must_change FROM users WHERE email = ${email}`;
   const u = rows[0];
   // Compare even when the user is missing so response time doesn't reveal valid emails.
   const hash = u?.password_hash ?? "$2b$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvali";
@@ -35,8 +36,8 @@ export async function login(_: State, form: FormData): Promise<State> {
     return { error: "Wrong email or password" };
   }
   await clear(emailKey);
-  await createSession({ uid: u.id, email, role: u.role as Role, v: u.token_version });
-  redirect(u.must_change ? "/account" : homeFor(u.role as Role));
+  await createSession({ uid: u.id, email, role: u.role as string, v: u.token_version });
+  redirect(u.must_change ? "/account" : homeFor(effectivePermissions(u.role, u.permissions)));
 }
 
 export async function logout() {
@@ -47,7 +48,7 @@ export async function logout() {
 // Client: scan a 10-digit number to request its verification code. The number is kept
 // encrypted only until the admin issues the code; afterwards just its keyed hash remains.
 export async function requestVerification(_: State, form: FormData): Promise<State> {
-  const s = await requireRole("client");
+  const s = await requirePermission("request");
   const code = String(form.get("code") ?? "").trim();
   if (!CODE_RE.test(code)) return { error: "Not a valid 10-digit number" };
   const note = String(form.get("note") ?? "").trim().slice(0, NOTE_MAX) || null;
@@ -82,7 +83,7 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
 
 // Admin: generate the next letter + 5 digit code for a pending request, then wipe the stored number.
 export async function issueRequest(form: FormData) {
-  const s = await requireRole("admin");
+  const s = await requirePermission("manage_requests");
   const id = Number(form.get("id"));
   if (!Number.isInteger(id)) return;
   const rows = await sql`
@@ -101,7 +102,7 @@ export async function issueRequest(form: FormData) {
 
 // Admin: refuse a pending request. The stored number is wiped; the client sees it was denied.
 export async function denyRequest(_: State, form: FormData): Promise<State> {
-  await requireRole("admin");
+  await requirePermission("manage_requests");
   const id = Number(form.get("id"));
   if (!Number.isInteger(id)) return { error: "Invalid request" };
   const rows = await sql`
@@ -116,7 +117,7 @@ export async function denyRequest(_: State, form: FormData): Promise<State> {
 
 // Admin: delete a confirmed request. Its code stops working on the monitor and leaves the client's history.
 export async function removeRequest(_: State, form: FormData): Promise<State> {
-  await requireRole("admin");
+  await requirePermission("manage_requests");
   const id = Number(form.get("id"));
   if (!Number.isInteger(id)) return { error: "Invalid request" };
   const rows = await sql`SELECT code_hash FROM codes WHERE id = ${id}`;
@@ -130,7 +131,7 @@ export async function removeRequest(_: State, form: FormData): Promise<State> {
 
 // Monitor (and admin): scan the 10-digit number, get the verification code.
 export async function lookupVerification(_: State, form: FormData): Promise<State> {
-  await requireRole("monitor", "admin");
+  await requirePermission("monitor");
   const code = String(form.get("code") ?? "").trim();
   if (!CODE_RE.test(code)) return { error: "Not a valid 10-digit number" };
   const rows = await sql`SELECT vcode FROM verifications WHERE code_hash = ${hashCode(code)}`;

@@ -2,10 +2,10 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import { sql } from "./db";
+import { effectivePermissions, homeFor, type Permission } from "./permissions";
 
-export type Role = "admin" | "client" | "monitor";
 // v is users.token_version: bumping it (password change/reset) signs the user out everywhere.
-export type Session = { uid: number; email: string; role: Role; v: number };
+export type Session = { uid: number; email: string; role: string; v: number };
 
 const COOKIE = "session";
 const key = () => new TextEncoder().encode(process.env.SESSION_SECRET);
@@ -32,7 +32,7 @@ export async function getSession(): Promise<Session | null> {
     return {
       uid: payload.uid as number,
       email: payload.email as string,
-      role: payload.role as Role,
+      role: payload.role as string,
       v: (payload.v as number | undefined) ?? -1,
     };
   } catch {
@@ -44,22 +44,39 @@ export async function destroySession() {
   (await cookies()).delete(COOKIE);
 }
 
-export const homeFor = (role: Role) => `/${role}`;
-
-// Signed-in user, checked against the database so deleted users, role changes and
+// Signed-in user, checked against the database so deleted users, permission changes and
 // password resets take effect on the next request. Does not enforce a pending password change.
 export async function requireUser() {
   const s = await getSession();
   if (!s) redirect("/login");
-  const rows = await sql`SELECT email, role, token_version, must_change FROM users WHERE id = ${s.uid}`;
+  const rows = await sql`SELECT email, role, permissions, token_version, must_change FROM users WHERE id = ${s.uid}`;
   const u = rows[0];
   if (!u || u.token_version !== s.v) redirect("/login");
-  return { uid: s.uid, email: u.email as string, role: u.role as Role, v: s.v, mustChange: u.must_change as boolean };
+  const role = u.role as string;
+  return {
+    uid: s.uid,
+    email: u.email as string,
+    role,
+    isAdmin: role === "admin",
+    perms: effectivePermissions(role, u.permissions as string[]),
+    v: s.v,
+    mustChange: u.must_change as boolean,
+  };
 }
 
-export async function requireRole(...roles: Role[]) {
+export type User = Awaited<ReturnType<typeof requireUser>>;
+
+// The user must hold at least one of the permissions (administrators hold all of them).
+export async function requirePermission(...needed: Permission[]) {
   const s = await requireUser();
   if (s.mustChange) redirect("/account");
-  if (!roles.includes(s.role)) redirect(homeFor(s.role));
+  if (!needed.some((p) => s.perms.includes(p))) redirect(homeFor(s.perms));
+  return s;
+}
+
+export async function requireAdmin() {
+  const s = await requireUser();
+  if (s.mustChange) redirect("/account");
+  if (!s.isAdmin) redirect(homeFor(s.perms));
   return s;
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireRole } from "@/lib/session";
+import { requirePermission } from "@/lib/session";
 import { sql } from "@/lib/db";
 import { decryptPending } from "@/lib/codes";
 import { AutoRefresh } from "../auto-refresh";
@@ -36,7 +36,8 @@ function Note({ note }: { note: string | null }) {
 }
 
 export default async function AdminPage() {
-  const s = await requireRole("admin");
+  const s = await requirePermission("manage_requests");
+  const canSeeResets = s.perms.includes("reset_passwords");
   const pending = await sql`
     SELECT c.id, c.pending_enc, c.note, c.created_at, u.email FROM codes c
     LEFT JOIN users u ON u.id = c.client_id
@@ -49,10 +50,12 @@ export default async function AdminPage() {
   const totals = await sql`
     SELECT (SELECT count(*)::int FROM verifications) AS issued,
            (SELECT count(*)::int FROM reset_requests WHERE handled_at IS NULL) AS resets`;
-  const { issued: issuedTotal, resets } = totals[0] as { issued: number; resets: number };
+  const { issued: issuedTotal } = totals[0] as { issued: number };
+  // Password reset requests only show for people who may handle them.
+  const resets = canSeeResets ? (totals[0] as { resets: number }).resets : 0;
 
   return (
-    <Shell title="Requests" description="Issue verification codes for the numbers clients have scanned." email={s.email} role={s.role} width="lg">
+    <Shell title="Requests" description="Issue verification codes for the numbers clients have scanned." user={s} width="lg">
       <AutoRefresh />
       <div className="flex flex-col gap-6">
         {resets > 0 && (
@@ -62,10 +65,10 @@ export default async function AdminPage() {
           </Link>
         )}
 
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        <div className={`grid gap-3 sm:gap-4 ${canSeeResets ? "grid-cols-3" : "grid-cols-2"}`}>
           <Tile label="Pending" value={pending.length} tone={pending.length ? "text-warn" : ""} />
           <Tile label="Codes issued" value={issuedTotal} />
-          <Tile label="Reset requests" value={resets} tone={resets ? "text-danger" : ""} />
+          {canSeeResets && <Tile label="Reset requests" value={resets} tone={resets ? "text-danger" : ""} />}
         </div>
 
         <div className="grid gap-6 lg:grid-cols-5">

@@ -2,15 +2,11 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { createUser, deleteUser, resetPassword, updateUser } from "@/lib/user-actions";
+import { ALL_PERMISSIONS, permissionLabel, type Permission } from "@/lib/permissions";
 import { PasswordInput } from "../../password-input";
+import { PermissionPicker } from "./permission-picker";
 
-const roleStyle: Record<string, string> = {
-  admin: "bg-accent-soft text-accent",
-  client: "bg-page text-muted border border-line",
-  monitor: "bg-success-soft text-success",
-};
-
-export function CreateUserForm() {
+export function CreateUserForm({ options, adminAllowed }: { options: Permission[]; adminAllowed: boolean }) {
   const [state, action, pending] = useActionState(createUser, null);
   return (
     <form action={action} className="flex flex-col gap-4">
@@ -22,14 +18,7 @@ export function CreateUserForm() {
         <label htmlFor="new-password" className="label">Initial password</label>
         <PasswordInput id="new-password" name="password" minLength={8} required autoComplete="new-password" placeholder="At least 8 characters" />
       </div>
-      <div>
-        <label htmlFor="new-role" className="label">Role</label>
-        <select id="new-role" name="role" defaultValue="client" className="input">
-          <option value="client">Client</option>
-          <option value="monitor">Monitor</option>
-          <option value="admin">Admin</option>
-        </select>
-      </div>
+      <PermissionPicker idPrefix="new" options={options} defaults={[]} adminAllowed={adminAllowed} />
       <button disabled={pending} className="btn btn-primary">{pending ? "Creating…" : "Create user"}</button>
       {state?.error && <p role="alert" className="alert alert-error">{state.error}</p>}
       {state?.ok && <p role="status" className="alert alert-success">{state.ok}</p>}
@@ -37,9 +26,20 @@ export function CreateUserForm() {
   );
 }
 
-type Props = { id: number; email: string; role: string; isSelf: boolean; resetRequested: boolean; created: string };
+type Props = {
+  id: number;
+  email: string;
+  isAdmin: boolean;
+  perms: Permission[];
+  isSelf: boolean;
+  resetRequested: boolean;
+  created: string;
+  canEdit: boolean;
+  canReset: boolean;
+  canDelete: boolean;
+};
 
-export function UserRow({ id, email, role, isSelf, resetRequested, created }: Props) {
+export function UserRow({ id, email, isAdmin, perms, isSelf, resetRequested, created, canEdit, canReset, canDelete }: Props) {
   const [saved, save, saving] = useActionState(updateUser, null);
   const [reset, doReset, resetting] = useActionState(resetPassword, null);
   const [removed, remove, removing] = useActionState(deleteUser, null);
@@ -53,37 +53,34 @@ export function UserRow({ id, email, role, isSelf, resetRequested, created }: Pr
   return (
     <div className={`card flex flex-col gap-3 p-4 ${resetRequested ? "border-danger/50" : ""}`}>
       {!editing ? (
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold uppercase text-accent">
             {email[0]}
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium">{email}</p>
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-              <span className={`badge capitalize ${roleStyle[role] ?? ""}`}>{role}</span>
+            <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+              {isAdmin ? (
+                <span className="badge bg-accent-soft text-accent">Administrator</span>
+              ) : (
+                perms.map((p) => (
+                  <span key={p} className="badge border border-line bg-page text-muted">{permissionLabel(p)}</span>
+                ))
+              )}
+              {!isAdmin && perms.length === 0 && <span className="badge border border-line bg-page text-muted">No access</span>}
               {resetRequested && <span className="badge bg-danger text-white">Reset requested</span>}
-              <span>Created {created}</span>
-              {isSelf && <span>· You</span>}
             </p>
+            <p className="mt-1 text-xs text-muted">Created {created}{isSelf ? " · You" : ""}</p>
           </div>
         </div>
       ) : (
-        <form action={save} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <form action={save} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={id} />
-          <div className="min-w-0 flex-1">
+          <div>
             <label htmlFor={`email-${id}`} className="label">Email</label>
             <input id={`email-${id}`} name="email" type="email" defaultValue={email} required className="input" />
           </div>
-          <div>
-            <label htmlFor={`role-${id}`} className="label">Role</label>
-            <select id={`role-${id}`} name="role" defaultValue={role} disabled={isSelf} className="input" title={isSelf ? "You can't change your own role" : undefined}>
-              <option value="client">Client</option>
-              <option value="monitor">Monitor</option>
-              <option value="admin">Admin</option>
-            </select>
-            {/* A disabled select isn't submitted, so keep the admin's own role explicit. */}
-            {isSelf && <input type="hidden" name="role" value="admin" />}
-          </div>
+          <PermissionPicker idPrefix={`edit-${id}`} options={ALL_PERMISSIONS} defaults={perms} adminAllowed adminDefault={isAdmin} lockAdmin={isSelf} />
           <div className="flex gap-2">
             <button disabled={saving} className="btn btn-primary">{saving ? "Saving…" : "Save"}</button>
             <button type="button" onClick={() => setEditing(false)} className="btn btn-secondary">Cancel</button>
@@ -91,17 +88,19 @@ export function UserRow({ id, email, role, isSelf, resetRequested, created }: Pr
         </form>
       )}
 
-      {!editing && (
+      {!editing && (canEdit || canReset || canDelete) && (
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => setEditing(true)} className="btn btn-secondary btn-sm">Edit</button>
-          <form action={doReset}>
-            <input type="hidden" name="id" value={id} />
-            <button disabled={resetting} className="btn btn-secondary btn-sm">{resetting ? "Resetting…" : "Reset password"}</button>
-          </form>
-          {!isSelf && !confirming && (
+          {canEdit && <button type="button" onClick={() => setEditing(true)} className="btn btn-secondary btn-sm">Edit</button>}
+          {canReset && (
+            <form action={doReset}>
+              <input type="hidden" name="id" value={id} />
+              <button disabled={resetting} className="btn btn-secondary btn-sm">{resetting ? "Resetting…" : "Reset password"}</button>
+            </form>
+          )}
+          {canDelete && !confirming && (
             <button type="button" onClick={() => setConfirming(true)} className="btn btn-danger-ghost btn-sm ml-auto">Delete</button>
           )}
-          {!isSelf && confirming && (
+          {canDelete && confirming && (
             <form action={remove} className="ml-auto flex items-center gap-2">
               <input type="hidden" name="id" value={id} />
               <span className="text-xs text-muted">Delete this user?</span>

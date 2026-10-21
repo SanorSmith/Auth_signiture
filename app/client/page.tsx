@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/session";
+import { requirePermission } from "@/lib/session";
 import { sql } from "@/lib/db";
 import { AutoRefresh } from "../auto-refresh";
 import { Shell } from "../shell";
@@ -7,7 +7,7 @@ import { ScanForm } from "./scan-form";
 const when = (d: string) => new Date(d).toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", dateStyle: "short", timeStyle: "short" });
 
 export default async function ClientPage() {
-  const s = await requireRole("client");
+  const s = await requirePermission("request");
   // The big code is the number scanned last; below it, the last three codes the admin issued.
   const rows = await sql`
     SELECT v.vcode, c.denied_at FROM codes c
@@ -20,7 +20,7 @@ export default async function ClientPage() {
   const latest = rows[0] as { vcode: string | null; denied_at: string | null } | undefined;
 
   return (
-    <Shell title="Request a code" description="Scan the 10-digit number to get its verification code." email={s.email} role={s.role}>
+    <Shell title="Request a code" description="Scan the 10-digit number to get its verification code." user={s}>
       <AutoRefresh />
       <div className="flex flex-col gap-5">
         <section className="card p-5 sm:p-6">
