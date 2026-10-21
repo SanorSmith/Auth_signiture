@@ -54,10 +54,20 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
   const h = hashCode(code);
 
   const found = await sql`
-    SELECT c.client_id, v.vcode FROM codes c
+    SELECT c.client_id, c.denied_at, v.vcode FROM codes c
     LEFT JOIN verifications v ON v.code_hash = c.code_hash WHERE c.code_hash = ${h}`;
   if (found.length) {
     if (found[0].client_id !== s.uid) return { error: "This number has already been requested" };
+    if (found[0].denied_at) {
+      // Scanning a denied number again reopens the request for the admin.
+      await sql`
+        UPDATE codes SET denied_at = NULL, pending_enc = ${encryptPending(code)}, last_scanned_at = now(),
+                         note = COALESCE(${note}, note)
+        WHERE code_hash = ${h}`;
+      revalidatePath("/client");
+      revalidatePath("/admin");
+      return { ok: "Request sent again, waiting for the admin" };
+    }
     // Re-scanning your own number makes it the one the client page shows.
     await sql`UPDATE codes SET last_scanned_at = now(), note = COALESCE(${note}, note) WHERE code_hash = ${h}`;
     revalidatePath("/client");
@@ -77,7 +87,7 @@ export async function issueRequest(form: FormData) {
   if (!Number.isInteger(id)) return;
   const rows = await sql`
     SELECT c.code_hash FROM codes c
-    LEFT JOIN verifications v ON v.code_hash = c.code_hash WHERE c.id = ${id} AND v.id IS NULL`;
+    LEFT JOIN verifications v ON v.code_hash = c.code_hash WHERE c.id = ${id} AND v.id IS NULL AND c.denied_at IS NULL`;
   if (!rows.length) return;
   const [{ n }] = await sql`SELECT nextval('vcode_counter')::float8 AS n`;
   await sql`
@@ -86,6 +96,36 @@ export async function issueRequest(form: FormData) {
     ON CONFLICT (code_hash) DO NOTHING`;
   await sql`UPDATE codes SET pending_enc = NULL WHERE id = ${id}`;
   revalidatePath("/admin");
+  revalidatePath("/client");
+}
+
+// Admin: refuse a pending request. The stored number is wiped; the client sees it was denied.
+export async function denyRequest(_: State, form: FormData): Promise<State> {
+  await requireRole("admin");
+  const id = Number(form.get("id"));
+  if (!Number.isInteger(id)) return { error: "Invalid request" };
+  const rows = await sql`
+    UPDATE codes SET denied_at = now(), pending_enc = NULL
+    WHERE id = ${id} AND denied_at IS NULL
+      AND NOT EXISTS (SELECT 1 FROM verifications v WHERE v.code_hash = codes.code_hash)
+    RETURNING id`;
+  revalidatePath("/admin");
+  revalidatePath("/client");
+  return rows.length ? { ok: "Denied" } : { error: "This request was already handled" };
+}
+
+// Admin: delete a confirmed request. Its code stops working on the monitor and leaves the client's history.
+export async function removeRequest(_: State, form: FormData): Promise<State> {
+  await requireRole("admin");
+  const id = Number(form.get("id"));
+  if (!Number.isInteger(id)) return { error: "Invalid request" };
+  const rows = await sql`SELECT code_hash FROM codes WHERE id = ${id}`;
+  if (!rows.length) return { error: "Request not found" };
+  await sql`DELETE FROM verifications WHERE code_hash = ${rows[0].code_hash}`;
+  await sql`DELETE FROM codes WHERE id = ${id}`;
+  revalidatePath("/admin");
+  revalidatePath("/client");
+  return { ok: "Removed" };
 }
 
 // Monitor (and admin): scan the 10-digit number, get the verification code.

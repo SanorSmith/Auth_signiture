@@ -2,9 +2,9 @@ import Link from "next/link";
 import { requireRole } from "@/lib/session";
 import { sql } from "@/lib/db";
 import { decryptPending } from "@/lib/codes";
-import { issueRequest } from "@/lib/actions";
 import { AutoRefresh } from "../auto-refresh";
 import { Shell } from "../shell";
+import { PendingActions, RemoveAction } from "./request-actions";
 
 const when = (d: string) => new Date(d).toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", dateStyle: "short", timeStyle: "short" });
 
@@ -41,7 +41,7 @@ export default async function AdminPage() {
     SELECT c.id, c.pending_enc, c.note, c.created_at, u.email FROM codes c
     LEFT JOIN users u ON u.id = c.client_id
     LEFT JOIN verifications v ON v.code_hash = c.code_hash
-    WHERE v.id IS NULL ORDER BY c.id`;
+    WHERE v.id IS NULL AND c.denied_at IS NULL ORDER BY c.id`;
   const issued = await sql`
     SELECT c.id, c.note, v.vcode, v.created_at, u.email FROM verifications v
     JOIN codes c ON c.code_hash = v.code_hash
@@ -75,9 +75,9 @@ export default async function AdminPage() {
               <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">Nothing waiting. New scans appear here.</p>
             )}
             {pending.map((r) => (
-              <details key={r.id} className="card overflow-hidden">
-                <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3">
-                  <span className="flex min-w-0 flex-col gap-0.5">
+              <div key={r.id} className="card overflow-hidden">
+                <details>
+                  <summary className="flex cursor-pointer list-none flex-col gap-0.5 px-4 py-3">
                     <span className="font-mono text-lg font-semibold tracking-wide">{numberOf(r.pending_enc)}</span>
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
                       <span className="truncate">{r.email ?? "Deleted user"}</span>
@@ -85,15 +85,13 @@ export default async function AdminPage() {
                       <span>{when(r.created_at)}</span>
                       {r.note && <span className="badge bg-accent-soft text-accent">Note</span>}
                     </span>
-                  </span>
-                  {/* The button submits the empty form below via its form attribute, so it can sit in the summary. */}
-                  <button form={`issue-${r.id}`} className="btn btn-primary btn-sm shrink-0">Generate</button>
-                </summary>
-                <Note note={r.note} />
-                <form id={`issue-${r.id}`} action={issueRequest} hidden>
-                  <input type="hidden" name="id" value={r.id} />
-                </form>
-              </details>
+                  </summary>
+                  <Note note={r.note} />
+                </details>
+                <div className="border-t border-line px-4 py-2.5">
+                  <PendingActions id={r.id} />
+                </div>
+              </div>
             ))}
           </section>
 
@@ -103,17 +101,22 @@ export default async function AdminPage() {
               <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">Nothing issued yet.</p>
             )}
             {issued.map((r) => (
-              <details key={r.id} className="card overflow-hidden">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
-                  <span className="min-w-0">
-                    <span className="block truncate text-xs text-muted">{r.email ?? "Deleted user"}</span>
-                    <span className="block text-xs text-muted">{when(r.created_at)}</span>
-                    {r.note && <span className="badge mt-1 bg-accent-soft text-accent">Note</span>}
-                  </span>
-                  <span className="font-mono text-xl font-semibold tracking-widest">{r.vcode.trim()}</span>
-                </summary>
-                <Note note={r.note} />
-              </details>
+              <div key={r.id} className="card overflow-hidden">
+                <details>
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs text-muted">{r.email ?? "Deleted user"}</span>
+                      <span className="block text-xs text-muted">{when(r.created_at)}</span>
+                      {r.note && <span className="badge mt-1 bg-accent-soft text-accent">Note</span>}
+                    </span>
+                    <span className="font-mono text-xl font-semibold tracking-widest">{r.vcode.trim()}</span>
+                  </summary>
+                  <Note note={r.note} />
+                </details>
+                <div className="border-t border-line px-4 py-2.5">
+                  <RemoveAction id={r.id} />
+                </div>
+              </div>
             ))}
           </section>
         </div>

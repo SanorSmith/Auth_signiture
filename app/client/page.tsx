@@ -10,14 +10,14 @@ export default async function ClientPage() {
   const s = await requireRole("client");
   // The big code is the number scanned last; below it, the last three codes the admin issued.
   const rows = await sql`
-    SELECT v.vcode FROM codes c
+    SELECT v.vcode, c.denied_at FROM codes c
     LEFT JOIN verifications v ON v.code_hash = c.code_hash
     WHERE c.client_id = ${s.uid} ORDER BY c.last_scanned_at DESC, c.id DESC LIMIT 1`;
   const history = await sql`
     SELECT v.vcode, v.created_at, c.note FROM codes c
     JOIN verifications v ON v.code_hash = c.code_hash
     WHERE c.client_id = ${s.uid} ORDER BY v.id DESC LIMIT 3`;
-  const latest = rows[0] as { vcode: string | null } | undefined;
+  const latest = rows[0] as { vcode: string | null; denied_at: string | null } | undefined;
 
   return (
     <Shell title="Request a code" description="Scan the 10-digit number to get its verification code." email={s.email} role={s.role}>
@@ -32,7 +32,13 @@ export default async function ClientPage() {
             No code yet. Scan a number to get started.
           </section>
         )}
-        {latest && !latest.vcode && (
+        {latest && !latest.vcode && latest.denied_at && (
+          <section className="card border-danger/40 bg-danger-soft p-6 text-center text-danger" role="alert">
+            <p className="text-lg font-semibold">Request denied</p>
+            <p className="mt-1 text-sm opacity-90">The admin denied this request. Scan the number again to ask once more.</p>
+          </section>
+        )}
+        {latest && !latest.vcode && !latest.denied_at && (
           <section className="card flex items-center justify-center gap-3 p-8 text-warn" role="status">
             <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-warn" />
             <span className="font-medium">Waiting for the admin…</span>
