@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.authsignature.app",
+      "sha256_cert_fingerprints": [
+        "86:96:00:AB:0A:F5:78:67:1B:0D:26:3D:0E:A0:2D:80:2A:B2:71:B5:0C:3C:FD:88:BC:31:26:4F:5E:CC:58:50"
+      ]
+    }
+  }
+]
