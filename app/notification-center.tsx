@@ -8,6 +8,7 @@ import { getPushKey, markNotificationsRead, removePushSubscription, savePushSubs
 import {
   ACTION_TONES,
   NOTIFICATION_TONES,
+  audioState,
   isToneKind,
   playTone,
   setSoundEnabled,
@@ -60,23 +61,63 @@ export function NotificationCenter({ perms }: { perms: Permission[] }) {
   const [toast, setToast] = useState<Item | null>(null);
   const [push, setPush] = useState<PushState>("checking");
   const [pushError, setPushError] = useState<string | null>(null);
+  const [locked, setLocked] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [promptHidden, setPromptHidden] = useState(true);
 
   const lastId = useRef<number | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  useEffect(() => setSound(soundEnabled()), []);
-
-  // Sound needs one touch on the page first; do it on the first interaction.
   useEffect(() => {
+    setSound(soundEnabled());
+    setMounted(true);
+    // Ask again about device notifications only once a week if someone says "Not now".
+    try {
+      const asked = Number(localStorage.getItem("push-prompt") ?? 0);
+      setPromptHidden(Date.now() - asked < 7 * 24 * 3600 * 1000);
+    } catch {
+      setPromptHidden(false);
+    }
+  }, []);
+
+  // Browsers keep sound locked until the person taps the page. Keep trying on every tap until it works
+  // (a touch alone does not count in Chrome; the tap that follows it does).
+  useEffect(() => {
+    const events = ["pointerdown", "pointerup", "touchend", "click", "keydown"] as const;
     const unlock = async () => {
-      if (await unlockAudio()) setBlocked(false);
+      if (await unlockAudio()) {
+        setBlocked(false);
+        setLocked(false);
+        for (const e of events) window.removeEventListener(e, unlock);
+      }
     };
-    const events = ["pointerdown", "touchstart", "click", "keydown"] as const;
-    for (const e of events) window.addEventListener(e, unlock, { once: true });
+    for (const e of events) window.addEventListener(e, unlock);
     return () => {
       for (const e of events) window.removeEventListener(e, unlock);
     };
   }, []);
+
+  // Say so when sound is locked, instead of staying silent without a word.
+  useEffect(() => {
+    const check = () => setLocked(sound && audioState() === "locked");
+    check();
+    const t = setInterval(check, 1500);
+    return () => clearInterval(t);
+  }, [sound]);
+
+  const enableSound = async () => {
+    const ok = await unlockAudio();
+    setBlocked(!ok);
+    setLocked(!ok);
+    if (ok) await playTone("done");
+  };
+
+  const hidePrompt = () => {
+    try {
+      localStorage.setItem("push-prompt", String(Date.now()));
+    } catch {}
+    setPromptHidden(true);
+  };
 
   const announce = useCallback(async (item: Item) => {
     const kind: ToneKind = isToneKind(item.kind) ? item.kind : "new_request";
@@ -306,23 +347,39 @@ export function NotificationCenter({ perms }: { perms: Permission[] }) {
         </div>
       )}
 
-      {/* Rendered on the page body: the header's blur effect would otherwise trap a fixed banner inside it. */}
-      {toast &&
+      {/* Rendered on the page body: the header's blur effect would otherwise trap fixed banners inside it. */}
+      {mounted &&
         createPortal(
-          <div
-            role="status"
-            aria-live="polite"
-            className="card fixed inset-x-3 bottom-4 z-30 flex items-start gap-3 border-accent/50 p-4 shadow-lg sm:inset-x-auto sm:right-4 sm:w-96"
-          >
-            <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 animate-pulse rounded-full ${DOT[toast.kind] ?? "bg-accent"}`} />
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold">{toast.title}</p>
-              <p className="text-sm text-muted">{toast.body}</p>
-              <div className="mt-3 flex gap-2">
-                <Link href={toast.url} onClick={() => setToast(null)} className="btn btn-primary btn-sm">View</Link>
-                <button type="button" onClick={() => setToast(null)} className="btn btn-secondary btn-sm">Dismiss</button>
+          <div className="fixed inset-x-3 bottom-4 z-30 flex flex-col gap-2 sm:inset-x-auto sm:right-4 sm:w-96">
+            {locked && (
+              <div role="alert" className="card flex items-center gap-3 border-warn/50 bg-warn-soft p-3 shadow-lg">
+                <span className="min-w-0 flex-1 text-sm text-warn">Sound is off until you tap. Phones keep it locked until then.</span>
+                <button type="button" onClick={enableSound} className="btn btn-primary btn-sm shrink-0">Enable sound</button>
               </div>
-            </div>
+            )}
+            {push === "off" && !promptHidden && (
+              <div className="card flex flex-col gap-2 p-3 shadow-lg">
+                <p className="text-sm font-medium">Get alerts even when the app is closed</p>
+                <p className="text-xs text-muted">Your phone will ring with its own notification sound when something needs you.</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={enablePush} className="btn btn-primary btn-sm">Turn on</button>
+                  <button type="button" onClick={hidePrompt} className="btn btn-secondary btn-sm">Not now</button>
+                </div>
+              </div>
+            )}
+            {toast && (
+              <div role="status" aria-live="polite" className="card flex items-start gap-3 border-accent/50 p-4 shadow-lg">
+                <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 animate-pulse rounded-full ${DOT[toast.kind] ?? "bg-accent"}`} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">{toast.title}</p>
+                  <p className="text-sm text-muted">{toast.body}</p>
+                  <div className="mt-3 flex gap-2">
+                    <Link href={toast.url} onClick={() => setToast(null)} className="btn btn-primary btn-sm">View</Link>
+                    <button type="button" onClick={() => setToast(null)} className="btn btn-secondary btn-sm">Dismiss</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>,
           document.body,
         )}

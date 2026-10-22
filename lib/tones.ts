@@ -145,25 +145,43 @@ export function setSoundEnabled(on: boolean) {
 let ctx: AudioContext | null = null;
 let master: AudioNode | null = null;
 
+// The audio context, created on first use. It starts out "suspended" until the person touches the page.
+function ensureContext(): AudioContext | null {
+  const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctor) return null;
+  if (!ctx) {
+    ctx = new Ctor();
+    // Everything goes through a limiter, so the louder tones never distort on a small speaker.
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -12;
+    limiter.knee.value = 20;
+    limiter.ratio.value = 6;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.25;
+    limiter.connect(ctx.destination);
+    master = limiter;
+  }
+  return ctx;
+}
+
+// Can sound play right now? "locked" means the browser is waiting for a tap on the page.
+export function audioState(): "running" | "locked" | "unsupported" {
+  try {
+    const c = ensureContext();
+    if (!c) return "unsupported";
+    return c.state === "running" ? "running" : "locked";
+  } catch {
+    return "unsupported";
+  }
+}
+
 // Browsers only allow sound after the person has touched the page once.
 export async function unlockAudio(): Promise<boolean> {
   try {
-    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return false;
-    if (!ctx) {
-      ctx = new Ctor();
-      // Everything goes through a limiter, so the louder tones never distort on a small speaker.
-      const limiter = ctx.createDynamicsCompressor();
-      limiter.threshold.value = -12;
-      limiter.knee.value = 20;
-      limiter.ratio.value = 6;
-      limiter.attack.value = 0.003;
-      limiter.release.value = 0.25;
-      limiter.connect(ctx.destination);
-      master = limiter;
-    }
-    if (ctx.state === "suspended") await ctx.resume();
-    return ctx.state === "running";
+    const c = ensureContext();
+    if (!c) return false;
+    if (c.state !== "running") await c.resume();
+    return c.state === "running";
   } catch {
     return false;
   }
