@@ -45,3 +45,10 @@ next-env.d.ts
 .vercel
 
 *.log
+
+# Android
+android/**/build/
+android/.gradle/
+android/local.properties
+android/**/*.apk
+android/**/*.keystore
