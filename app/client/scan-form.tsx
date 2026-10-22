@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { requestVerification } from "@/lib/actions";
 import { NOTE_MAX } from "@/lib/codes";
+import { signal } from "@/lib/tones";
 import { ScanInput } from "../scan-input";
 
 // A Zebra scanner in keyboard (HID / DataWedge) mode types the digits and presses Enter.
@@ -14,6 +15,9 @@ export function ScanForm() {
 
   useEffect(() => {
     if (state?.ok) setNote("");
+    // A short sound confirms what just happened to your scan.
+    if (state?.ok) void signal("sent");
+    else if (state?.error) void signal("error");
   }, [state]);
 
   return (

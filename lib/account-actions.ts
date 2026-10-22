@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { sql } from "./db";
 import { blockedFor, clear, recordFailure } from "./ratelimit";
+import { later, notifyPermission } from "./notify";
 import { homeFor } from "./permissions";
 import { createSession, requireUser } from "./session";
 import type { State } from "./actions";
@@ -52,11 +53,21 @@ export async function forgotPassword(_: State, form: FormData): Promise<State> {
 
   const rows = await sql`SELECT id FROM users WHERE email = ${email}`;
   if (rows.length) {
-    await sql`
+    const added = await sql`
       INSERT INTO reset_requests (user_id) VALUES (${rows[0].id})
-      ON CONFLICT (user_id) WHERE handled_at IS NULL DO NOTHING`;
+      ON CONFLICT (user_id) WHERE handled_at IS NULL DO NOTHING RETURNING id`;
     revalidatePath("/admin");
     revalidatePath("/admin/users");
+    // Only the first request notifies; asking again while one is open does not repeat it.
+    if (added.length) {
+      later(() =>
+        notifyPermission(
+          "reset_passwords",
+          { kind: "reset_requested", title: "Password reset requested", body: `${email} asked for a password reset`, url: "/admin/users" },
+          rows[0].id as number,
+        ),
+      );
+    }
   }
   return { ok: "If that account exists, the admin has been notified and will give you a temporary password." };
 }

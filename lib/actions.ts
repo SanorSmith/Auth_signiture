@@ -4,8 +4,7 @@ import bcrypt from "bcryptjs";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { after } from "next/server";
-import { notifyRequestManagers } from "./push";
+import { later, notifyPermission, notifyUsers, type Notice } from "./notify";
 import { sql } from "./db";
 import { blockedFor, clear, recordFailure } from "./ratelimit";
 import { CODE_RE, NOTE_MAX, encryptPending, hashCode, vcodeFromCounter } from "./codes";
@@ -47,19 +46,20 @@ export async function logout() {
   redirect("/login");
 }
 
-// Tells everyone who manages requests, on their devices, that a request is waiting. Runs after the
-// response is sent so the client never waits for it, and never makes the request itself fail.
+// Tells everyone who manages requests that a request is waiting.
 function announce(userId: number, email: string, note: string | null) {
-  after(async () => {
-    try {
-      await notifyRequestManagers(
-        { title: "New verification request", body: note ? `${email}: ${note}` : `From ${email}`, url: "/admin" },
-        userId,
-      );
-    } catch {
-      // A failed notification must not affect the request.
-    }
-  });
+  later(() =>
+    notifyPermission(
+      "manage_requests",
+      { kind: "new_request", title: "New verification request", body: note ? `${email}: ${note}` : `From ${email}`, url: "/admin" },
+      userId,
+    ),
+  );
+}
+
+// Tells the person who asked what the admin did with their request (not when they did it themselves).
+function tellRequester(clientId: number | null, actorId: number, notice: Notice) {
+  if (clientId && clientId !== actorId) later(() => notifyUsers([clientId], notice));
 }
 
 // Client: scan a 10-digit number to request its verification code. The number is kept
@@ -128,7 +128,7 @@ export async function issueRequest(form: FormData) {
   const id = Number(form.get("id"));
   if (!Number.isInteger(id)) return;
   const rows = await sql`
-    SELECT c.code_hash FROM codes c
+    SELECT c.code_hash, c.client_id FROM codes c
     LEFT JOIN verifications v ON v.code_hash = c.code_hash WHERE c.id = ${id} AND v.id IS NULL AND c.denied_at IS NULL`;
   if (!rows.length) return;
   const [{ n }] = await sql`SELECT nextval('vcode_counter')::float8 AS n`;
@@ -141,34 +141,55 @@ export async function issueRequest(form: FormData) {
   await sql`UPDATE codes SET pending_enc = NULL WHERE id = ${id}`;
   revalidatePath("/admin");
   revalidatePath("/client");
+  // The code itself is not put in the notification, so it never shows on a lock screen.
+  tellRequester(rows[0].client_id, s.uid, {
+    kind: "code_issued",
+    title: "Your verification code is ready",
+    body: "The admin issued the code for your request.",
+    url: "/client",
+  });
 }
 
 // Admin: refuse a pending request. The stored number is wiped; the client sees it was denied.
 export async function denyRequest(_: State, form: FormData): Promise<State> {
-  await requirePermission("manage_requests");
+  const me = await requirePermission("manage_requests");
   const id = Number(form.get("id"));
   if (!Number.isInteger(id)) return { error: "Invalid request" };
   const rows = await sql`
     UPDATE codes SET denied_at = now(), pending_enc = NULL
     WHERE id = ${id} AND denied_at IS NULL
       AND NOT EXISTS (SELECT 1 FROM verifications v WHERE v.code_hash = codes.code_hash)
-    RETURNING id`;
+    RETURNING id, client_id`;
   revalidatePath("/admin");
   revalidatePath("/client");
+  if (rows.length) {
+    tellRequester(rows[0].client_id, me.uid, {
+      kind: "request_denied",
+      title: "Your request was denied",
+      body: "The admin denied your request. Scan the number again to ask once more.",
+      url: "/client",
+    });
+  }
   return rows.length ? { ok: "Denied" } : { error: "This request was already handled" };
 }
 
 // Admin: delete a confirmed request. Its code stops working on the monitor and leaves the client's history.
 export async function removeRequest(_: State, form: FormData): Promise<State> {
-  await requirePermission("manage_requests");
+  const me = await requirePermission("manage_requests");
   const id = Number(form.get("id"));
   if (!Number.isInteger(id)) return { error: "Invalid request" };
-  const rows = await sql`SELECT code_hash FROM codes WHERE id = ${id}`;
+  const rows = await sql`SELECT code_hash, client_id FROM codes WHERE id = ${id}`;
   if (!rows.length) return { error: "Request not found" };
   await sql`DELETE FROM verifications WHERE code_hash = ${rows[0].code_hash}`;
   await sql`DELETE FROM codes WHERE id = ${id}`;
   revalidatePath("/admin");
   revalidatePath("/client");
+  tellRequester(rows[0].client_id, me.uid, {
+    kind: "request_removed",
+    title: "Your request was removed",
+    body: "The admin removed one of your requests.",
+    url: "/client",
+  });
   return { ok: "Removed" };
 }
 

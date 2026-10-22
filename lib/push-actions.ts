@@ -2,16 +2,17 @@
 
 import { sql } from "./db";
 import { vapidPublicKey } from "./push";
-import { requirePermission } from "./session";
+import { requireUser } from "./session";
 
-// Called by the browser when an admin turns on device notifications.
+// Called by the browser when someone turns on device notifications. Everyone may: clients hear
+// about their codes, admins about new requests.
 export async function getPushKey() {
-  await requirePermission("manage_requests");
+  await requireUser();
   return vapidPublicKey();
 }
 
 export async function savePushSubscription(sub: { endpoint: string; p256dh: string; auth: string }, userAgent: string) {
-  const me = await requirePermission("manage_requests");
+  const me = await requireUser();
   if (!sub.endpoint.startsWith("https://") || !sub.p256dh || !sub.auth) return { error: "Invalid subscription" };
   // One row per device; if the device now belongs to a different person, it moves to them.
   await sql`
@@ -22,7 +23,14 @@ export async function savePushSubscription(sub: { endpoint: string; p256dh: stri
 }
 
 export async function removePushSubscription(endpoint: string) {
-  const me = await requirePermission("manage_requests");
+  const me = await requireUser();
   await sql`DELETE FROM push_subscriptions WHERE endpoint = ${endpoint} AND user_id = ${me.uid}`;
+  return { ok: true };
+}
+
+// Marks everything the person has been told about as read.
+export async function markNotificationsRead() {
+  const me = await requireUser();
+  await sql`UPDATE notifications SET read_at = now() WHERE user_id = ${me.uid} AND read_at IS NULL`;
   return { ok: true };
 }

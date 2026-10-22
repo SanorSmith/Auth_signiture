@@ -31,16 +31,13 @@ async function vapid(): Promise<Vapid> {
 
 export const vapidPublicKey = async () => (await vapid()).publicKey;
 
-export type PushPayload = { title: string; body: string; url: string };
+export type PushPayload = { kind: string; title: string; body: string; url: string };
 
-// Sends a notification to every device of every user who may manage requests, except `exceptUserId`
-// (the person who made the request). Dead subscriptions (404/410) are removed.
-export async function notifyRequestManagers(payload: PushPayload, exceptUserId: number | null) {
+// Sends a notification to every device of the given users. Dead subscriptions (404/410) are removed.
+export async function sendPushToUsers(userIds: number[], payload: PushPayload) {
+  if (userIds.length === 0) return;
   const subs = await sql`
-    SELECT s.id, s.endpoint, s.p256dh, s.auth FROM push_subscriptions s
-    JOIN users u ON u.id = s.user_id
-    WHERE (u.role = 'admin' OR 'manage_requests' = ANY(u.permissions))
-      AND (${exceptUserId}::int IS NULL OR u.id <> ${exceptUserId}::int)`;
+    SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ANY(${userIds}::int[])`;
   if (subs.length === 0) return;
 
   const keys = await vapid();

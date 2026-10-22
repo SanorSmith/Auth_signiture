@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { lookupVerification } from "@/lib/actions";
+import { signal } from "@/lib/tones";
 import { ScanInput } from "../scan-input";
 
 // A Zebra scanner in keyboard (HID / DataWedge) mode types the digits and presses Enter,
@@ -10,6 +11,12 @@ import { ScanInput } from "../scan-input";
 export function Scanner() {
   const [state, action, pending] = useActionState(lookupVerification, null);
   const input = useRef<HTMLInputElement>(null);
+
+  // A short sound says whether the code was found, so you can watch the scanner, not the screen.
+  useEffect(() => {
+    if (state?.vcode) void signal("found");
+    else if (state?.error) void signal(state.error.startsWith("No verification") ? "missing" : "error");
+  }, [state]);
 
   return (
     <div

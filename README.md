@@ -16,14 +16,25 @@ Each request records who asked (`codes.requested_by_email`) and which admin issu
 
 Download `auth-signature.apk` from the [latest release](https://github.com/SanorSmith/Auth_signiture/releases/latest) on an Android 7.0+ phone, open it and allow installing from that source. It opens the site full-screen as its own app and supports the request notifications. Details and how to rebuild it are in [`android/README.md`](android/README.md).
 
-## Request alerts
+## Notifications
 
-People with the *Manage requests* permission get a bell in the header.
+Everyone has a bell in the header with the notifications meant for them. Each kind has its own 2 to 3 second tone:
 
-- **In the app:** while the app is open it checks for new requests every few seconds and plays a tone (Chime, Bell or Soft pulse, chosen per device), vibrates and shows a banner. Browsers only allow sound after one touch on the page.
-- **On the device:** "Turn on device notifications" subscribes the device to Web Push, so Android shows a notification with the device's own default sound even when the app is closed. It needs the installed app (or Chrome) on a device with Google Play services; where push is unavailable the in-app tone still works.
+| Tone | Who gets it | When |
+| --- | --- | --- |
+| New request | people who manage requests | a client asked for a code |
+| Password reset | people who reset passwords | someone asked for a password reset |
+| Code ready | the client | the admin issued their code |
+| Request denied | the client | the admin denied their request |
+| Request removed | the client | the admin removed their request |
+| Access changed | the user | an admin changed their permissions |
 
-Push signing keys are created on first use and kept in `app_settings`; set `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` to use your own. Notifications never include the scanned number, only who asked and their note.
+Your own actions play short sounds instead (request sent, code found, not found, error).
+
+- **In the app:** while it is open it checks every few seconds, plays the tone, vibrates and shows a banner. "Hear the tones" in the bell previews every tone. Browsers only allow sound after one touch on the page, and sound can be switched off per device.
+- **On the device:** "Turn on device notifications" subscribes the device to Web Push, so Android shows a notification with the device's own default sound even when the app is closed. It needs the installed app (or Chrome) on a device with Google Play services; where push is unavailable the in-app tones still work.
+
+Notifications are stored in the `notifications` table (the newest 50 per person). They never include the scanned number or the verification code. Push signing keys are created on first use and kept in `app_settings`; set `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` to use your own.
 
 ## Setup
 

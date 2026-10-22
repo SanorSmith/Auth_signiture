@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { sql } from "./db";
+import { later, notifyUsers } from "./notify";
 import { canManageTarget, effectivePermissions, parsePermissions } from "./permissions";
 import { requireAdmin, requirePermission } from "./session";
 import type { State } from "./actions";
@@ -64,6 +65,16 @@ export async function updateUser(_: State, form: FormData): Promise<State> {
     UPDATE users SET email = ${email}, role = ${wantsAdmin ? "admin" : "user"}, permissions = ${stored}::text[]
     WHERE id = ${id} RETURNING id`;
   refresh();
+  if (rows.length && id !== me.uid) {
+    later(() =>
+      notifyUsers([id], {
+        kind: "access_changed",
+        title: "Your access was changed",
+        body: "An administrator updated what you can do in the app.",
+        url: "/",
+      }),
+    );
+  }
   return rows.length ? { ok: "Saved" } : { error: "User not found" };
 }
 
