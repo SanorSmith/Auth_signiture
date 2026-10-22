@@ -25,6 +25,7 @@ fun appInForeground() = ProcessLifecycleOwner.get().lifecycle.currentState.isAtL
 class AlertService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var listener: Job? = null
+    private var wakeLock: android.os.PowerManager.WakeLock? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -34,6 +35,11 @@ class AlertService : Service() {
         if (container.store.token == null) {
             stopSelf()
             return START_NOT_STICKY
+        }
+        // Keeps the processor awake with the screen off, so the check does not pause between rounds.
+        if (wakeLock == null) {
+            val power = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+            wakeLock = power.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "authsignature:alerts").apply { acquire() }
         }
         container.poller.start()
         if (listener?.isActive != true) {
@@ -49,6 +55,8 @@ class AlertService : Service() {
 
     override fun onDestroy() {
         scope.cancel()
+        runCatching { wakeLock?.release() }
+        wakeLock = null
         if (!appInForeground()) applicationContext.container.poller.stop()
         super.onDestroy()
     }

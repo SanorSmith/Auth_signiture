@@ -91,12 +91,33 @@ fun MainScaffold(user: User, openUrl: String?, onUrlHandled: () -> Unit) {
     val unread by container.poller.unread.collectAsState()
 
     // Android 13+ asks before an app may show notifications.
-    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    // Phones stop apps that run quietly with the screen off; ask once to leave this one alone.
+    val askBattery = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
+    fun startBackground() {
+        if (!container.store.backgroundAlerts) return
+        com.authsignature.app.notify.AlertService.start(context)
+        if (!container.store.askedAboutBackground) {
+            container.store.askedAboutBackground = true
+            val power = context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+            if (!power.isIgnoringBatteryOptimizations(context.packageName)) {
+                runCatching {
+                    askBattery.launch(
+                        android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                            .setData(android.net.Uri.parse("package:" + context.packageName)),
+                    )
+                }
+            }
+        }
+    }
+    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { startBackground() }
     LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) startBackground()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
             askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            startBackground()
         }
     }
 

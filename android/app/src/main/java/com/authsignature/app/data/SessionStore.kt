@@ -39,7 +39,7 @@ class SessionStore(context: Context) {
 
     /** Keep checking for notifications while the app is closed (a small ongoing notification shows). */
     var backgroundAlerts: Boolean
-        get() = prefs.getBoolean(KEY_BACKGROUND, false)
+        get() = prefs.getBoolean(KEY_BACKGROUND, true)
         set(value) = prefs.edit().putBoolean(KEY_BACKGROUND, value).apply()
 
     var askedAboutBackground: Boolean
