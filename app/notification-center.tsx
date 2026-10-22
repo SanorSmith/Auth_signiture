@@ -54,6 +54,7 @@ function keyToBytes(b64: string) {
 // phone even when the app is closed.
 export function NotificationCenter({ perms }: { perms: Permission[] }) {
   const [open, setOpen] = useState(false);
+  const [all, setAll] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   const [unread, setUnread] = useState(0);
   const [sound, setSound] = useState(true);
@@ -280,23 +281,27 @@ export function NotificationCenter({ perms }: { perms: Permission[] }) {
 
           <ul className="flex flex-col gap-1">
             {items.length === 0 && <li className="rounded-lg border border-dashed border-line p-4 text-center text-sm text-muted">Nothing yet. New activity shows up here.</li>}
-            {items.map((n) => (
+            {(all ? items : items.slice(0, 5)).map((n) => (
               <li key={n.id}>
                 <Link
                   href={n.url}
                   onClick={() => setOpen(false)}
-                  className="flex items-start gap-2.5 rounded-lg p-2 transition hover:bg-page"
+                  className="flex items-start gap-2.5 rounded-lg px-2 py-1 transition hover:bg-page"
                 >
                   <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${DOT[n.kind] ?? "bg-muted"} ${n.read ? "opacity-40" : ""}`} />
                   <span className="min-w-0 flex-1">
                     <span className={`block truncate text-sm ${n.read ? "" : "font-semibold"}`}>{n.title}</span>
-                    <span className="block truncate text-xs text-muted">{n.body}</span>
-                    <span className="block text-xs text-muted">{ago(n.at)}</span>
+                    <span className="block truncate text-xs text-muted">{n.body.length > 48 ? `${n.body.slice(0, 48)}…` : n.body} · {ago(n.at)}</span>
                   </span>
                 </Link>
               </li>
             ))}
           </ul>
+          {items.length > 5 && (
+            <button type="button" onClick={() => setAll((a) => !a)} className="-mt-2 self-start text-xs text-accent">
+              {all ? "Show fewer" : `Show all ${items.length}`}
+            </button>
+          )}
 
           <div className="border-t border-line pt-3">
             <div className="flex items-start justify-between gap-3">

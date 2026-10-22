@@ -34,6 +34,11 @@ class NotificationPoller(
     /** One event for every notification that arrives after the first check. */
     val events: SharedFlow<Notice> = _events
 
+    private val _status = MutableStateFlow("Not checked yet")
+
+    /** How the last check went, shown on the Account screen to find out why alerts are missing. */
+    val status: StateFlow<String> = _status
+
     private var job: Job? = null
     private var lastId: Long? = null
 
@@ -43,12 +48,15 @@ class NotificationPoller(
             while (isActive) {
                 try {
                     pollOnce()
+                    _status.value = "Working, last check ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())}"
                 } catch (e: ApiException) {
+                    _status.value = "Server said: ${e.message}"
                     if (e.unauthorized) {
                         onUnauthorized()
                         return@launch
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    _status.value = "Cannot reach the server (${e.javaClass.simpleName})"
                     // Offline for a moment; the next round tries again.
                 }
                 delay(intervalMs)

@@ -26,6 +26,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -144,6 +145,8 @@ fun AccountScreen(user: User) {
                     shape = RoundedCornerShape(10.dp),
                 ) { Text("Test sound") }
                 silence?.let { ErrorNote(it) }
+                val checkStatus by container.poller.status.collectAsState()
+                Text("Notification check: $checkStatus", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 SwitchRow("Alerts when the app is closed", "Keeps checking for new requests and codes. Android shows a small ongoing notification.", background, ::setBackground)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

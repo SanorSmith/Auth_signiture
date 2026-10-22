@@ -50,9 +50,9 @@ fun NotificationsSheet(onDismiss: () -> Unit, onOpen: (String) -> Unit) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Notifications", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             if (items.isEmpty()) EmptyNote("Nothing yet. New activity shows up here.", Modifier.padding(top = 8.dp))
-            items.forEach { n ->
+            items.take(5).forEach { n ->
                 Row(
-                    Modifier.fillMaxWidth().clickable { onOpen(n.url) }.padding(vertical = 10.dp),
+                    Modifier.fillMaxWidth().clickable { onOpen(n.url) }.padding(vertical = 6.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
                     val dot: Color = when (n.kind) {
@@ -65,8 +65,7 @@ fun NotificationsSheet(onDismiss: () -> Unit, onOpen: (String) -> Unit) {
                     Box(Modifier.padding(top = 6.dp).size(9.dp).background(dot.copy(alpha = if (n.read) 0.4f else 1f), CircleShape))
                     Column(Modifier.padding(start = 12.dp).weight(1f)) {
                         Text(n.title, fontWeight = if (n.read) FontWeight.Normal else FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(n.body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text(ago(n.at), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${n.body.take(60)} · ${ago(n.at)}", maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Box(Modifier.width(4.dp))
                 }

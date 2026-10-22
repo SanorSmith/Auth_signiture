@@ -138,6 +138,8 @@ fun MainScaffold(user: User, openUrl: String?, onUrlHandled: () -> Unit) {
     LaunchedEffect(Unit) {
         container.poller.events.collect { notice ->
             container.signalFor(notice)
+            // The phone's own notification sound too, so an alert is heard even if the tone is not.
+            com.authsignature.app.notify.NotificationHelper.show(context, notice)
             scope.launch {
                 val result = snackbar.showSnackbar(
                     message = "${notice.title}\n${notice.body}",
