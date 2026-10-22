@@ -46,12 +46,13 @@ export async function destroySession() {
 
 // Signed-in user, checked against the database so deleted users, permission changes and
 // password resets take effect on the next request. Does not enforce a pending password change.
-export async function requireUser() {
+// The signed-in user, or null (for API routes that answer 401 instead of redirecting).
+export async function currentUser() {
   const s = await getSession();
-  if (!s) redirect("/login");
+  if (!s) return null;
   const rows = await sql`SELECT email, role, permissions, token_version, must_change FROM users WHERE id = ${s.uid}`;
   const u = rows[0];
-  if (!u || u.token_version !== s.v) redirect("/login");
+  if (!u || u.token_version !== s.v) return null;
   const role = u.role as string;
   return {
     uid: s.uid,
@@ -62,6 +63,12 @@ export async function requireUser() {
     v: s.v,
     mustChange: u.must_change as boolean,
   };
+}
+
+export async function requireUser() {
+  const u = await currentUser();
+  if (!u) redirect("/login");
+  return u;
 }
 
 export type User = Awaited<ReturnType<typeof requireUser>>;

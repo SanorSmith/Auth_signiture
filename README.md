@@ -12,6 +12,15 @@ Verification codes come from a database counter pushed through a bijective map, 
 
 Each request records who asked (`codes.requested_by_email`) and which admin issued the code (`verifications.issued_by_email`); the emails are kept even if the user is deleted later.
 
+## Request alerts
+
+People with the *Manage requests* permission get a bell in the header.
+
+- **In the app:** while the app is open it checks for new requests every few seconds and plays a tone (Chime, Bell or Soft pulse, chosen per device), vibrates and shows a banner. Browsers only allow sound after one touch on the page.
+- **On the device:** "Turn on device notifications" subscribes the device to Web Push, so Android shows a notification with the device's own default sound even when the app is closed. It needs the installed app (or Chrome) on a device with Google Play services; where push is unavailable the in-app tone still works.
+
+Push signing keys are created on first use and kept in `app_settings`; set `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` to use your own. Notifications never include the scanned number, only who asked and their note.
+
 ## Setup
 
 ```

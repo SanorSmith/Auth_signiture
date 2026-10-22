@@ -2,6 +2,7 @@ import Link from "next/link";
 import { logout } from "@/lib/actions";
 import { sql } from "@/lib/db";
 import { canManageUsers, homeFor, type Permission } from "@/lib/permissions";
+import { AlertsMenu } from "./alerts-menu";
 import { Brand } from "./brand";
 import { NavLink } from "./nav-link";
 
@@ -31,10 +32,13 @@ export async function Header({ email, perms }: { email: string; perms: Permissio
           )}
           <NavLink href="/account" exact>Account</NavLink>
         </nav>
-        <form action={logout} className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          {perms.includes("manage_requests") && <AlertsMenu />}
           <span className="hidden max-w-48 truncate text-xs text-muted md:block">{email}</span>
-          <button className="btn btn-secondary btn-sm">Log out</button>
-        </form>
+          <form action={logout}>
+            <button className="btn btn-secondary btn-sm">Log out</button>
+          </form>
+        </div>
       </div>
     </header>
   );

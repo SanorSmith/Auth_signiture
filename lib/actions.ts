@@ -4,6 +4,8 @@ import bcrypt from "bcryptjs";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { notifyRequestManagers } from "./push";
 import { sql } from "./db";
 import { blockedFor, clear, recordFailure } from "./ratelimit";
 import { CODE_RE, NOTE_MAX, encryptPending, hashCode, vcodeFromCounter } from "./codes";
@@ -45,6 +47,21 @@ export async function logout() {
   redirect("/login");
 }
 
+// Tells everyone who manages requests, on their devices, that a request is waiting. Runs after the
+// response is sent so the client never waits for it, and never makes the request itself fail.
+function announce(userId: number, email: string, note: string | null) {
+  after(async () => {
+    try {
+      await notifyRequestManagers(
+        { title: "New verification request", body: note ? `${email}: ${note}` : `From ${email}`, url: "/admin" },
+        userId,
+      );
+    } catch {
+      // A failed notification must not affect the request.
+    }
+  });
+}
+
 // Client: scan a 10-digit number to request its verification code. The number is kept
 // encrypted only until the admin issues the code; afterwards just its keyed hash remains.
 export async function requestVerification(_: State, form: FormData): Promise<State> {
@@ -67,6 +84,7 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
         WHERE code_hash = ${h}`;
       revalidatePath("/client");
       revalidatePath("/admin");
+      announce(s.uid, s.email, note);
       return { ok: "Request sent again, waiting for the admin" };
     }
     // Re-scanning your own number makes it the one the client page shows.
@@ -79,6 +97,7 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
     VALUES (${h}, ${s.uid}, ${s.email}, ${encryptPending(code)}, ${note})
     ON CONFLICT (code_hash) DO NOTHING RETURNING id`;
   revalidatePath("/client");
+  if (ins.length) announce(s.uid, s.email, note);
   return ins.length ? { ok: "Request sent, waiting for the admin" } : { error: "This number has already been requested" };
 }
 
