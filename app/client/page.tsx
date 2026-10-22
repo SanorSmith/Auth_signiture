@@ -2,6 +2,7 @@ import { requirePermission } from "@/lib/session";
 import { sql } from "@/lib/db";
 import { AutoRefresh } from "../auto-refresh";
 import { Shell } from "../shell";
+import { ResultTone } from "./result-tone";
 import { ScanForm } from "./scan-form";
 
 const when = (d: string) => new Date(d).toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", dateStyle: "short", timeStyle: "short" });
@@ -22,6 +23,7 @@ export default async function ClientPage() {
   return (
     <Shell title="Request a code" description="Scan the 10-digit number to get its verification code." user={s}>
       <AutoRefresh />
+      <ResultTone vcode={latest?.vcode?.trim() ?? null} denied={!!latest?.denied_at} />
       <div className="flex flex-col gap-3 sm:gap-5">
         <section className="card p-4 sm:p-6">
           <ScanForm />

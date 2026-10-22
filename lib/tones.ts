@@ -233,7 +233,14 @@ export async function playTone(kind: ToneKind): Promise<boolean> {
 }
 
 // The tone and vibration for an event, unless sound is off on this device.
+// Two parts of the page can report the same event (the bell and the page showing the result), so a
+// tone for the same event is not played twice within a few seconds.
+const lastPlayed = new Map<ToneKind, number>();
+
 export async function signal(kind: ToneKind): Promise<boolean> {
+  const now = Date.now();
+  if (now - (lastPlayed.get(kind) ?? 0) < 4000 && kind !== "error") return true;
+  lastPlayed.set(kind, now);
   try {
     navigator.vibrate?.(VIBRATION[kind]);
   } catch {}
