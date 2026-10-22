@@ -12,6 +12,10 @@ Verification codes come from a database counter pushed through a bijective map, 
 
 Each request records who asked (`codes.requested_by_email`) and which admin issued the code (`verifications.issued_by_email`); the emails are kept even if the user is deleted later.
 
+## Android app
+
+Download `auth-signature.apk` from the [latest release](https://github.com/SanorSmith/Auth_signiture/releases/latest) on an Android 7.0+ phone, open it and allow installing from that source. It opens the site full-screen as its own app and supports the request notifications. Details and how to rebuild it are in [`android/README.md`](android/README.md).
+
 ## Request alerts
 
 People with the *Manage requests* permission get a bell in the header.
