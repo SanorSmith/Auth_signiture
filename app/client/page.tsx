@@ -22,35 +22,38 @@ export default async function ClientPage() {
   return (
     <Shell title="Request a code" description="Scan the 10-digit number to get its verification code." user={s}>
       <AutoRefresh />
-      <div className="flex flex-col gap-5">
-        <section className="card p-5 sm:p-6">
+      <div className="flex flex-col gap-3 sm:gap-5">
+        <section className="card p-4 sm:p-6">
           <ScanForm />
         </section>
 
-        {!latest && (
-          <section className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">
-            No code yet. Scan a number to get started.
-          </section>
-        )}
-        {latest && !latest.vcode && latest.denied_at && (
-          <section className="card border-danger/40 bg-danger-soft p-6 text-center text-danger" role="alert">
-            <p className="text-lg font-semibold">Request denied</p>
-            <p className="mt-1 text-sm opacity-90">The admin denied this request. Scan the number again to ask once more.</p>
-          </section>
-        )}
-        {latest && !latest.vcode && !latest.denied_at && (
-          <section className="card flex items-center justify-center gap-3 p-8 text-warn" role="status">
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-warn" />
-            <span className="font-medium">Waiting for the admin…</span>
-          </section>
-        )}
-        {latest?.vcode && (
-          <section className="card bg-accent-soft p-6 text-center sm:p-8">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted">Your verification code</p>
-            {/* Scales with the screen width so the 6 characters always fit, even on small handhelds. */}
-            <p className="mt-2 whitespace-nowrap font-mono text-[clamp(2rem,15vw,6rem)] font-bold tracking-widest text-accent">{latest.vcode.trim()}</p>
-          </section>
-        )}
+        {/* On a handheld the code sits above the scan form so a scan and its result are both on screen. */}
+        <div className="order-first sm:order-none">
+          {!latest && (
+            <section className="rounded-xl border border-dashed border-line p-4 text-center text-sm text-muted sm:p-8">
+              No code yet. Scan a number to get started.
+            </section>
+          )}
+          {latest && !latest.vcode && latest.denied_at && (
+            <section className="card border-danger/40 bg-danger-soft p-4 text-center text-danger sm:p-6" role="alert">
+              <p className="text-lg font-semibold">Request denied</p>
+              <p className="mt-1 text-sm opacity-90">The admin denied this request. Scan the number again to ask once more.</p>
+            </section>
+          )}
+          {latest && !latest.vcode && !latest.denied_at && (
+            <section className="card flex items-center justify-center gap-3 p-5 text-warn sm:p-8" role="status">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-warn" />
+              <span className="font-medium">Waiting for the admin…</span>
+            </section>
+          )}
+          {latest?.vcode && (
+            <section className="card bg-accent-soft p-4 text-center sm:p-8">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted">Your verification code</p>
+              {/* Scales with the screen width so the 6 characters always fit, even on small handhelds. */}
+              <p className="mt-1 whitespace-nowrap font-mono text-[clamp(2rem,15vw,6rem)] font-bold tracking-widest text-accent sm:mt-2">{latest.vcode.trim()}</p>
+            </section>
+          )}
+        </div>
 
         {history.length > 0 && (
           <section className="card overflow-hidden">

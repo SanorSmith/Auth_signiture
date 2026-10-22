@@ -13,7 +13,7 @@ export async function Header({ email, perms }: { email: string; perms: Permissio
   }
   return (
     <header className="sticky top-0 z-10 border-b border-line bg-surface/85 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-3 sm:gap-3 sm:px-6">
+      <div className="mx-auto flex h-12 max-w-5xl items-center gap-2 px-3 sm:h-14 sm:gap-3 sm:px-6">
         <Link href={homeFor(perms)} aria-label="Home" className="shrink-0">
           <Brand />
         </Link>

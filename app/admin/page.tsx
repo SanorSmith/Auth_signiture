@@ -25,12 +25,24 @@ function Tile({ label, value, tone = "" }: { label: string; value: number; tone?
   );
 }
 
-// Click a row to read the client's note for that request.
-function Note({ note }: { note: string | null }) {
+// Click a row to see who asked, who issued the code, and the client's note.
+function Note({ note, askedBy, issuedBy }: { note: string | null; askedBy: string | null; issuedBy?: string | null }) {
   return (
-    <div className="border-t border-line bg-page/60 px-4 py-3 text-sm">
-      <p className="mb-0.5 text-xs font-medium text-muted">Client note</p>
-      {note ? <p>{note}</p> : <p className="text-muted">No note.</p>}
+    <div className="flex flex-col gap-2 border-t border-line bg-page/60 px-4 py-3 text-sm">
+      <div>
+        <p className="mb-0.5 text-xs font-medium text-muted">Asked by</p>
+        <p className="break-all">{askedBy ?? "Unknown"}</p>
+      </div>
+      {issuedBy !== undefined && (
+        <div>
+          <p className="mb-0.5 text-xs font-medium text-muted">Code issued by</p>
+          <p className="break-all">{issuedBy ?? "Unknown"}</p>
+        </div>
+      )}
+      <div>
+        <p className="mb-0.5 text-xs font-medium text-muted">Client note</p>
+        {note ? <p>{note}</p> : <p className="text-muted">No note.</p>}
+      </div>
     </div>
   );
 }
@@ -39,14 +51,19 @@ export default async function AdminPage() {
   const s = await requirePermission("manage_requests");
   const canSeeResets = s.perms.includes("reset_passwords");
   const pending = await sql`
-    SELECT c.id, c.pending_enc, c.note, c.created_at, u.email FROM codes c
+    SELECT c.id, c.pending_enc, c.note, c.created_at, COALESCE(u.email, c.requested_by_email) AS email FROM codes c
     LEFT JOIN users u ON u.id = c.client_id
     LEFT JOIN verifications v ON v.code_hash = c.code_hash
     WHERE v.id IS NULL AND c.denied_at IS NULL ORDER BY c.id`;
   const issued = await sql`
-    SELECT c.id, c.note, v.vcode, v.created_at, u.email FROM verifications v
+    SELECT c.id, c.note, v.vcode, v.created_at,
+           COALESCE(u.email, c.requested_by_email) AS email,
+           COALESCE(i.email, v.issued_by_email) AS issuer
+    FROM verifications v
     JOIN codes c ON c.code_hash = v.code_hash
-    LEFT JOIN users u ON u.id = c.client_id ORDER BY v.id DESC LIMIT 3`;
+    LEFT JOIN users u ON u.id = c.client_id
+    LEFT JOIN users i ON i.id = v.issued_by
+    ORDER BY v.id DESC LIMIT 3`;
   const totals = await sql`
     SELECT (SELECT count(*)::int FROM verifications) AS issued,
            (SELECT count(*)::int FROM reset_requests WHERE handled_at IS NULL) AS resets`;
@@ -83,13 +100,13 @@ export default async function AdminPage() {
                   <summary className="flex cursor-pointer list-none flex-col gap-0.5 px-4 py-3">
                     <span className="font-mono text-lg font-semibold tracking-wide">{numberOf(r.pending_enc)}</span>
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-                      <span className="truncate">{r.email ?? "Deleted user"}</span>
+                      <span className="truncate">Asked by {r.email ?? "Unknown"}</span>
                       <span>·</span>
                       <span>{when(r.created_at)}</span>
                       {r.note && <span className="badge bg-accent-soft text-accent">Note</span>}
                     </span>
                   </summary>
-                  <Note note={r.note} />
+                  <Note note={r.note} askedBy={r.email} />
                 </details>
                 <div className="border-t border-line px-4 py-2.5">
                   <PendingActions id={r.id} />
@@ -108,13 +125,14 @@ export default async function AdminPage() {
                 <details>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                     <span className="min-w-0">
-                      <span className="block truncate text-xs text-muted">{r.email ?? "Deleted user"}</span>
+                      <span className="block truncate text-xs text-muted">Asked by {r.email ?? "Unknown"}</span>
+                      <span className="block truncate text-xs text-muted">Issued by {r.issuer ?? "Unknown"}</span>
                       <span className="block text-xs text-muted">{when(r.created_at)}</span>
                       {r.note && <span className="badge mt-1 bg-accent-soft text-accent">Note</span>}
                     </span>
                     <span className="font-mono text-xl font-semibold tracking-widest">{r.vcode.trim()}</span>
                   </summary>
-                  <Note note={r.note} />
+                  <Note note={r.note} askedBy={r.email} issuedBy={r.issuer} />
                 </details>
                 <div className="border-t border-line px-4 py-2.5">
                   <RemoveAction id={r.id} />

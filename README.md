@@ -8,7 +8,9 @@ Verification codes for scanned client numbers. Next.js + Neon Postgres.
 2. **Admin** enters the number. The server hashes it and attaches the next verification code (one letter + 5 digits, `A00000`–`Z99999`). Entering the same number again returns the same code.
 3. **Monitor** user scans the number with a Zebra scanner (keyboard/HID or DataWedge mode, ends with Enter) and the page shows the verification code.
 
-Verification codes come from a database counter pushed through a bijective map, so none repeats until all 2,600,000 are used; the cycle then restarts.
+Verification codes come from a database counter pushed through a bijective map, so none repeats until all 2,600,000 are used; the cycle then restarts. When the next code is still held by an older request (the space is full), the oldest 1000 requests and their codes are deleted to make room, and the same happens each time it fills up. Set `VCODE_PRUNE_BATCH` to change the batch size.
+
+Each request records who asked (`codes.requested_by_email`) and which admin issued the code (`verifications.issued_by_email`); the emails are kept even if the user is deleted later.
 
 ## Setup
 

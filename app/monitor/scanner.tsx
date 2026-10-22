@@ -13,10 +13,10 @@ export function Scanner() {
 
   return (
     <div
-      className="flex flex-col gap-5"
+      className="flex flex-col gap-3 sm:gap-5"
       onClick={(e) => e.target === e.currentTarget && input.current?.focus()}
     >
-      <form action={action} className="card flex flex-col gap-3 p-5 sm:flex-row sm:items-end sm:p-6">
+      <form action={action} className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-end sm:p-6">
         <div className="flex-1">
           <ScanInput id="code" name="code" label="10-digit number" placeholder="Scan the number" inputRef={input} resetKey={state} pattern="\d{10}" />
         </div>
@@ -26,7 +26,7 @@ export function Scanner() {
       <section
         role="status"
         aria-live="polite"
-        className={`card flex min-h-64 flex-col items-center justify-center gap-2 p-6 text-center sm:min-h-80 ${
+        className={`card order-first flex min-h-40 flex-col items-center justify-center gap-2 p-4 text-center sm:order-none sm:min-h-80 sm:p-6 ${
           state?.vcode ? "border-success/40 bg-success-soft" : ""
         }`}
       >

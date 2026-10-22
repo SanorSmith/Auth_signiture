@@ -75,10 +75,32 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
     return { ok: found[0].vcode ? "Verification code shown below" : "Already requested, waiting for the admin" };
   }
   const ins = await sql`
-    INSERT INTO codes (code_hash, client_id, pending_enc, note) VALUES (${h}, ${s.uid}, ${encryptPending(code)}, ${note})
+    INSERT INTO codes (code_hash, client_id, requested_by_email, pending_enc, note)
+    VALUES (${h}, ${s.uid}, ${s.email}, ${encryptPending(code)}, ${note})
     ON CONFLICT (code_hash) DO NOTHING RETURNING id`;
   revalidatePath("/client");
   return ins.length ? { ok: "Request sent, waiting for the admin" } : { error: "This number has already been requested" };
+}
+
+// How many of the oldest requests are dropped at once when the code space is used up.
+const PRUNE_BATCH = Number(process.env.VCODE_PRUNE_BATCH) > 0 ? Number(process.env.VCODE_PRUNE_BATCH) : 1000;
+
+// Codes are handed out in a cycle of 2.6 million. Once every one is in use, the next code is still
+// held by an older request. Then the oldest PRUNE_BATCH requests (code and request together) are
+// deleted to make room, and the same happens again each time the space fills up.
+async function makeRoom(vcode: string) {
+  const holder = async () => (await sql`SELECT id, code_hash FROM verifications WHERE vcode = ${vcode} LIMIT 1`)[0];
+  if (!(await holder())) return;
+  await sql`
+    WITH old AS (SELECT id FROM verifications ORDER BY id ASC LIMIT ${PRUNE_BATCH}),
+         gone AS (DELETE FROM verifications WHERE id IN (SELECT id FROM old) RETURNING code_hash)
+    DELETE FROM codes WHERE code_hash IN (SELECT code_hash FROM gone)`;
+  // After requests were removed by hand the holder may not be among the oldest: drop it too, so a code is never in use twice.
+  const still = await holder();
+  if (still) {
+    await sql`DELETE FROM verifications WHERE id = ${still.id}`;
+    await sql`DELETE FROM codes WHERE code_hash = ${still.code_hash}`;
+  }
 }
 
 // Admin: generate the next letter + 5 digit code for a pending request, then wipe the stored number.
@@ -91,9 +113,11 @@ export async function issueRequest(form: FormData) {
     LEFT JOIN verifications v ON v.code_hash = c.code_hash WHERE c.id = ${id} AND v.id IS NULL AND c.denied_at IS NULL`;
   if (!rows.length) return;
   const [{ n }] = await sql`SELECT nextval('vcode_counter')::float8 AS n`;
+  const vcode = vcodeFromCounter(Number(n));
+  await makeRoom(vcode);
   await sql`
-    INSERT INTO verifications (code_hash, vcode, issued_by)
-    VALUES (${rows[0].code_hash}, ${vcodeFromCounter(Number(n))}, ${s.uid})
+    INSERT INTO verifications (code_hash, vcode, issued_by, issued_by_email)
+    VALUES (${rows[0].code_hash}, ${vcode}, ${s.uid}, ${s.email})
     ON CONFLICT (code_hash) DO NOTHING`;
   await sql`UPDATE codes SET pending_enc = NULL WHERE id = ${id}`;
   revalidatePath("/admin");
