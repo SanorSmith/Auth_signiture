@@ -36,14 +36,16 @@ function announce(userId: number, email: string, note: string | null) {
     notifyPermission(
       "manage_requests",
       { kind: "new_request", title: "New verification request", body: note ? `${email}: ${note}` : `From ${email}`, url: "/admin" },
-      userId,
+      // Nobody is left out, so the same account signed in on two devices is told on the other one.
+      null,
     ),
   );
 }
 
-// Tells the person who asked what the admin did with their request (not when they did it themselves).
-function tellRequester(clientId: number | null, actorId: number, notice: Notice) {
-  if (clientId && clientId !== actorId) later(() => notifyUsers([clientId], notice));
+// Tells the person who asked what the admin did with their request. This includes the same account on
+// another device (an administrator testing with two phones).
+function tellRequester(clientId: number | null, _actorId: number, notice: Notice) {
+  if (clientId) later(() => notifyUsers([clientId], notice));
 }
 
 // Client: scan a 10-digit number to request its verification code. The number is kept
