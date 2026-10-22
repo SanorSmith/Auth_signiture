@@ -7,7 +7,9 @@ const need = (k) => process.env[k] ?? (console.error(`Set ${k}`), process.exit(2
 const ADMIN = { email: need("ADMIN_EMAIL"), password: need("ADMIN_PASSWORD") };
 const MONITOR = { email: need("MONITOR_EMAIL"), password: need("MONITOR_PASSWORD") };
 const stamp = Date.now().toString(36);
-const CLIENT = { email: `qa-api-${stamp}@example.com`, password: "QaApi-Start-1" };
+const rand = () => Math.random().toString(36).slice(2, 10) + "-Aa1";
+const CLIENT = { email: `qa-api-${stamp}@example.com`, password: rand() };
+const NEW_PASSWORD = rand();
 const NUMBER_A = String(Math.floor(1e9 + Math.random() * 9e9));
 const NUMBER_B = String(Math.floor(1e9 + Math.random() * 9e9));
 
@@ -63,9 +65,9 @@ check("a pending password change blocks the app screens (403)", blocked.status =
 
 const shortPw = await call("POST", "/api/mobile/password", client, { current: CLIENT.password, next: "short", confirm: "short" });
 check("a too-short new password is refused", shortPw.status === 400, shortPw);
-const wrongCurrent = await call("POST", "/api/mobile/password", client, { current: "nope-nope-nope", next: "QaApi-Final-2", confirm: "QaApi-Final-2" });
+const wrongCurrent = await call("POST", "/api/mobile/password", client, { current: "nope-nope-nope", next: NEW_PASSWORD, confirm: NEW_PASSWORD });
 check("a wrong current password is refused", wrongCurrent.status === 400, wrongCurrent);
-const changed = await call("POST", "/api/mobile/password", client, { current: CLIENT.password, next: "QaApi-Final-2", confirm: "QaApi-Final-2" });
+const changed = await call("POST", "/api/mobile/password", client, { current: CLIENT.password, next: NEW_PASSWORD, confirm: NEW_PASSWORD });
 check("the client changes their password and gets a fresh token", changed.status === 200 && !!changed.body?.token && changed.body.user.mustChange === false, changed);
 const oldToken = await call("GET", "/api/mobile/me", client);
 check("the old token stops working after the change (401)", oldToken.status === 401, oldToken);
