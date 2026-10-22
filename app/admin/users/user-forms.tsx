@@ -3,11 +3,14 @@
 import { useActionState, useEffect, useState } from "react";
 import { createUser, deleteUser, resetPassword, updateUser } from "@/lib/user-actions";
 import { ALL_PERMISSIONS, permissionLabel, type Permission } from "@/lib/permissions";
+import { signal } from "@/lib/tones";
+import { useActionTone } from "@/lib/use-action-tone";
 import { PasswordInput } from "../../password-input";
 import { PermissionPicker } from "./permission-picker";
 
 export function CreateUserForm({ options, adminAllowed }: { options: Permission[]; adminAllowed: boolean }) {
   const [state, action, pending] = useActionState(createUser, null);
+  useActionTone(state);
   return (
     <form action={action} className="flex flex-col gap-4">
       <div>
@@ -43,6 +46,9 @@ export function UserRow({ id, email, isAdmin, perms, isSelf, resetRequested, cre
   const [saved, save, saving] = useActionState(updateUser, null);
   const [reset, doReset, resetting] = useActionState(resetPassword, null);
   const [removed, remove, removing] = useActionState(deleteUser, null);
+  useActionTone(saved);
+  useActionTone(reset);
+  useActionTone(removed, "deleted", true);
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
@@ -104,7 +110,8 @@ export function UserRow({ id, email, isAdmin, perms, isSelf, resetRequested, cre
             <form action={remove} className="ml-auto flex items-center gap-2">
               <input type="hidden" name="id" value={id} />
               <span className="text-xs text-muted">Delete this user?</span>
-              <button disabled={removing} className="btn btn-danger btn-sm">Yes, delete</button>
+              {/* The row disappears once the user is deleted, so the sound plays on the click itself. */}
+              <button disabled={removing} onClick={() => void signal("deleted")} className="btn btn-danger btn-sm">Yes, delete</button>
               <button type="button" onClick={() => setConfirming(false)} className="btn btn-secondary btn-sm">Cancel</button>
             </form>
           )}

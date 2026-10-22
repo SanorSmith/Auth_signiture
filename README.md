@@ -29,7 +29,7 @@ Everyone has a bell in the header with the notifications meant for them. Each ki
 | Request removed | the client | the admin removed their request |
 | Access changed | the user | an admin changed their permissions |
 
-Your own actions play short sounds instead (request sent, code found, not found, error).
+Your own actions play short sounds instead: request sent, code found, not found, error, done (generate, save, create, reset) and denied or removed. The tones are loud and stay audible for their whole length; the bell has a **Test sound** button, and if nothing is heard the phone's media volume or silent mode is the next thing to check.
 
 - **In the app:** while it is open it checks every few seconds, plays the tone, vibrates and shows a banner. "Hear the tones" in the bell previews every tone. Browsers only allow sound after one touch on the page, and sound can be switched off per device.
 - **On the device:** "Turn on device notifications" subscribes the device to Web Push, so Android shows a notification with the device's own default sound even when the app is closed. It needs the installed app (or Chrome) on a device with Google Play services; where push is unavailable the in-app tones still work.

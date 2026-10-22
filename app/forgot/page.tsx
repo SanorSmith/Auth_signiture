@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { forgotPassword } from "@/lib/account-actions";
+import { useActionTone } from "@/lib/use-action-tone";
 import { AuthCard } from "../auth-card";
 
 export default function ForgotPage() {
   const [state, action, pending] = useActionState(forgotPassword, null);
+  useActionTone(state, "sent");
   return (
     <AuthCard title="Forgot password" description="Enter your email. The admin is notified and will give you a temporary password.">
       <form action={action} className="flex flex-col gap-4">

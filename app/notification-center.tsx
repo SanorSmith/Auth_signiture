@@ -71,11 +71,10 @@ export function NotificationCenter({ perms }: { perms: Permission[] }) {
     const unlock = async () => {
       if (await unlockAudio()) setBlocked(false);
     };
-    window.addEventListener("pointerdown", unlock, { once: true });
-    window.addEventListener("keydown", unlock, { once: true });
+    const events = ["pointerdown", "touchstart", "click", "keydown"] as const;
+    for (const e of events) window.addEventListener(e, unlock, { once: true });
     return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
+      for (const e of events) window.removeEventListener(e, unlock);
     };
   }, []);
 
@@ -259,20 +258,23 @@ export function NotificationCenter({ perms }: { perms: Permission[] }) {
           </ul>
 
           <div className="border-t border-line pt-3">
-            <label className="flex cursor-pointer items-start gap-2.5 text-sm">
-              <input
-                type="checkbox"
-                checked={sound}
-                onChange={(e) => toggleSound(e.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
-              />
-              <span>
-                <span className="block font-medium">Play sounds</span>
-                <span className="block text-xs text-muted">A different tone for each kind of notification, on this device</span>
-              </span>
-            </label>
+            <div className="flex items-start justify-between gap-3">
+              <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+                <input
+                  type="checkbox"
+                  checked={sound}
+                  onChange={(e) => toggleSound(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
+                />
+                <span>
+                  <span className="block font-medium">Play sounds</span>
+                  <span className="block text-xs text-muted">A different tone for each notification and action, on this device</span>
+                </span>
+              </label>
+              <button type="button" onClick={() => preview("new_request")} className="btn btn-secondary btn-sm shrink-0">Test sound</button>
+            </div>
             {sound && blocked && (
-              <p className="alert alert-warn mt-2 text-xs">Your browser is blocking sound. Tap anywhere on the page once to allow it, then press Play.</p>
+              <p className="alert alert-warn mt-2 text-xs">Sound is blocked. Tap anywhere on the page once, then press Test sound. If you still hear nothing, turn up the phone&apos;s media volume and check it is not on silent.</p>
             )}
             <details className="mt-3">
               <summary className="cursor-pointer text-sm font-medium text-accent">Hear the tones</summary>

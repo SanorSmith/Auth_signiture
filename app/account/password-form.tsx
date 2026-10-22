@@ -2,10 +2,12 @@
 
 import { useActionState } from "react";
 import { changePassword } from "@/lib/account-actions";
+import { useActionTone } from "@/lib/use-action-tone";
 import { PasswordInput } from "../password-input";
 
 export function PasswordForm() {
   const [state, action, pending] = useActionState(changePassword, null);
+  useActionTone(state);
   return (
     <form action={action} className="flex flex-col gap-4">
       <div>

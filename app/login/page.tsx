@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { login } from "@/lib/actions";
+import { useActionTone } from "@/lib/use-action-tone";
 import { AuthCard } from "../auth-card";
 import { PasswordInput } from "../password-input";
 
 export default function LoginPage() {
   const [state, action, pending] = useActionState(login, null);
+  useActionTone(state);
   return (
     <AuthCard title="Sign in" description="Use the account your admin gave you.">
       <form action={action} className="flex flex-col gap-4">

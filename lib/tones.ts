@@ -13,7 +13,9 @@ export type ToneKind =
   | "sent"
   | "found"
   | "missing"
-  | "error";
+  | "error"
+  | "done"
+  | "deleted";
 
 type Voice = { f: number; at: number; dur: number; peak: number; type?: OscillatorType; warm?: boolean; bell?: boolean };
 
@@ -68,6 +70,16 @@ const SCORES: Record<ToneKind, Voice[]> = {
     { f: 196, at: 0.2, dur: 0.4, peak: 0.16, type: "triangle" },
   ],
   error: [{ f: 174.61, at: 0, dur: 0.45, peak: 0.07, type: "sawtooth" }],
+  // Any action of yours that went through (generate, save, create, reset...).
+  done: [
+    { f: 880, at: 0, dur: 0.16, peak: 0.16 },
+    { f: 1318.5, at: 0.1, dur: 0.35, peak: 0.16 },
+  ],
+  // Something was denied, removed or deleted: two short falling notes.
+  deleted: [
+    { f: 392, at: 0, dur: 0.18, peak: 0.18, type: "triangle" },
+    { f: 261.63, at: 0.12, dur: 0.4, peak: 0.18, type: "triangle" },
+  ],
 };
 
 // How the phone vibrates for each tone.
@@ -82,6 +94,8 @@ const VIBRATION: Record<ToneKind, number[]> = {
   found: [60],
   missing: [120],
   error: [200],
+  done: [40],
+  deleted: [80],
 };
 
 // Length of each tone in seconds (when its last note has faded out).
@@ -106,6 +120,8 @@ export const ACTION_TONES: ToneInfo[] = [
   { kind: "sent", label: "Request sent", hint: "Your scan went through", needs: "request" },
   { kind: "found", label: "Code found", hint: "The monitor found the code", needs: "monitor" },
   { kind: "missing", label: "Not found", hint: "No code for that number yet", needs: "monitor" },
+  { kind: "done", label: "Done", hint: "An action went through" },
+  { kind: "deleted", label: "Denied or removed", hint: "A request or user was denied, removed or deleted" },
   { kind: "error", label: "Error", hint: "Something was not accepted" },
 ];
 
@@ -127,13 +143,25 @@ export function setSoundEnabled(on: boolean) {
 }
 
 let ctx: AudioContext | null = null;
+let master: AudioNode | null = null;
 
 // Browsers only allow sound after the person has touched the page once.
 export async function unlockAudio(): Promise<boolean> {
   try {
     const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctor) return false;
-    ctx ??= new Ctor();
+    if (!ctx) {
+      ctx = new Ctor();
+      // Everything goes through a limiter, so the louder tones never distort on a small speaker.
+      const limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = -12;
+      limiter.knee.value = 20;
+      limiter.ratio.value = 6;
+      limiter.attack.value = 0.003;
+      limiter.release.value = 0.25;
+      limiter.connect(ctx.destination);
+      master = limiter;
+    }
     if (ctx.state === "suspended") await ctx.resume();
     return ctx.state === "running";
   } catch {
@@ -141,33 +169,48 @@ export async function unlockAudio(): Promise<boolean> {
   }
 }
 
-// One note: a quick attack and a smooth exponential fade sound clean, with no click.
-function note(freq: number, start: number, duration: number, peak: number, type: OscillatorType) {
-  if (!ctx) return;
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
+// Phone speakers are small, so the tones are about twice as loud as the raw notes in the scores.
+const LOUDNESS = 2.2;
+
+// One note. It rises in 20 ms, settles, then fades over most of its length, so a 2.5 second tone is
+// audible for about 2.5 seconds (a plain exponential fade to silence is inaudible after the first moments).
+function note(c: BaseAudioContext, out: AudioNode, freq: number, start: number, duration: number, peak: number, type: OscillatorType) {
+  const osc = c.createOscillator();
+  const gain = c.createGain();
   osc.type = type;
   osc.frequency.value = freq;
-  gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(peak, start + 0.015);
-  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  osc.connect(gain).connect(ctx.destination);
+  const top = peak * LOUDNESS;
+  const g = gain.gain;
+  g.setValueAtTime(0.0001, start);
+  g.linearRampToValueAtTime(top, start + 0.02);
+  if (duration > 0.3) {
+    g.exponentialRampToValueAtTime(top * 0.4, start + duration * 0.45);
+    g.exponentialRampToValueAtTime(top * 0.06, start + duration - 0.12);
+    g.linearRampToValueAtTime(0.0001, start + duration);
+  } else {
+    g.exponentialRampToValueAtTime(0.0001, start + duration);
+  }
+  osc.connect(gain).connect(out);
   osc.start(start);
   osc.stop(start + duration + 0.05);
 }
 
-// Plays a tone. Resolves to false when the browser still blocks sound.
-export async function playTone(kind: ToneKind): Promise<boolean> {
-  if (!(await unlockAudio()) || !ctx) return false;
-  const t = ctx.currentTime + 0.02;
+// Schedules every note of a tone on any audio context (the real one, or an offline one for tests).
+export function scheduleScore(c: BaseAudioContext, out: AudioNode, kind: ToneKind, t: number) {
   for (const v of SCORES[kind]) {
-    note(v.f, t + v.at, v.dur, v.peak, v.type ?? "sine");
-    if (v.warm) note(v.f * 2, t + v.at, v.dur * 0.6, v.peak * 0.2, "sine");
+    note(c, out, v.f, t + v.at, v.dur, v.peak, v.type ?? "sine");
+    if (v.warm) note(c, out, v.f * 2, t + v.at, v.dur * 0.6, v.peak * 0.2, "sine");
     if (v.bell) {
-      note(v.f * 2.76, t + v.at, v.dur * 0.55, v.peak * 0.3, "sine");
-      note(v.f * 5.4, t + v.at, v.dur * 0.3, v.peak * 0.12, "sine");
+      note(c, out, v.f * 2.76, t + v.at, v.dur * 0.55, v.peak * 0.3, "sine");
+      note(c, out, v.f * 5.4, t + v.at, v.dur * 0.3, v.peak * 0.12, "sine");
     }
   }
+}
+
+// Plays a tone. Resolves to false when the browser still blocks sound.
+export async function playTone(kind: ToneKind): Promise<boolean> {
+  if (!(await unlockAudio()) || !ctx || !master) return false;
+  scheduleScore(ctx, master, kind, ctx.currentTime + 0.02);
   return true;
 }
 
