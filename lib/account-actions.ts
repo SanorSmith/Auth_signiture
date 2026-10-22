@@ -1,11 +1,11 @@
 "use server";
 
-import bcrypt from "bcryptjs";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { changePasswordFor } from "./auth";
 import { sql } from "./db";
-import { blockedFor, clear, recordFailure } from "./ratelimit";
+import { blockedFor, recordFailure } from "./ratelimit";
 import { later, notifyPermission } from "./notify";
 import { homeFor } from "./permissions";
 import { createSession, requireUser } from "./session";
@@ -18,25 +18,10 @@ export async function changePassword(_: State, form: FormData): Promise<State> {
   const next = String(form.get("next") ?? "");
   const confirm = String(form.get("confirm") ?? "");
 
-  const key = `pw:${me.uid}`;
-  const wait = await blockedFor(key, 5);
-  if (wait) return { error: `Too many attempts. Try again in ${Math.ceil(wait / 60)} min.` };
-
-  const rows = await sql`SELECT password_hash FROM users WHERE id = ${me.uid}`;
-  if (!rows.length || !(await bcrypt.compare(current, rows[0].password_hash))) {
-    await recordFailure(key);
-    return { error: "Current password is wrong" };
-  }
-  if (next.length < 8) return { error: "New password must be at least 8 characters" };
-  if (next !== confirm) return { error: "The new passwords don't match" };
-  if (next === current) return { error: "Choose a password you haven't used just now" };
-
-  const updated = await sql`
-    UPDATE users SET password_hash = ${await bcrypt.hash(next, 10)}, must_change = false, token_version = token_version + 1
-    WHERE id = ${me.uid} RETURNING token_version`;
-  await clear(key);
+  const result = await changePasswordFor(me.uid, current, next, confirm);
+  if ("error" in result) return { error: result.error };
   // Other sessions are signed out by the version bump; keep this one.
-  await createSession({ uid: me.uid, email: me.email, role: me.role, v: updated[0].token_version });
+  await createSession({ uid: me.uid, email: me.email, role: me.role, v: result.version });
   revalidatePath("/", "layout");
   redirect(homeFor(me.perms));
 }

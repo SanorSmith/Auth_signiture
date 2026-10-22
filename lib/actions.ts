@@ -1,20 +1,16 @@
 "use server";
 
-import bcrypt from "bcryptjs";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { authenticate } from "./auth";
 import { later, notifyPermission, notifyUsers, type Notice } from "./notify";
 import { sql } from "./db";
-import { blockedFor, clear, recordFailure } from "./ratelimit";
 import { CODE_RE, NOTE_MAX, encryptPending, hashCode, vcodeFromCounter } from "./codes";
 import { effectivePermissions, homeFor } from "./permissions";
 import { createSession, destroySession, requirePermission } from "./session";
 
 export type State = { error?: string; code?: string; vcode?: string; ok?: string } | null;
-
-const LOGIN_PER_EMAIL = 5;
-const LOGIN_PER_IP = 20;
 
 export async function login(_: State, form: FormData): Promise<State> {
   const email = String(form.get("email") ?? "").trim().toLowerCase();
@@ -22,22 +18,10 @@ export async function login(_: State, form: FormData): Promise<State> {
 
   const h = await headers();
   const ip = h.get("x-real-ip") ?? h.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
-  const emailKey = `login:${ip}:${email}`;
-  const ipKey = `login-ip:${ip}`;
-  const wait = Math.max(await blockedFor(emailKey, LOGIN_PER_EMAIL), await blockedFor(ipKey, LOGIN_PER_IP));
-  if (wait) return { error: `Too many attempts. Try again in ${Math.ceil(wait / 60)} min.` };
-
-  const rows = await sql`SELECT id, password_hash, role, permissions, token_version, must_change FROM users WHERE email = ${email}`;
-  const u = rows[0];
-  // Compare even when the user is missing so response time doesn't reveal valid emails.
-  const hash = u?.password_hash ?? "$2b$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvali";
-  const ok = await bcrypt.compare(password, hash);
-  if (!u || !ok) {
-    await Promise.all([recordFailure(emailKey), recordFailure(ipKey)]);
-    return { error: "Wrong email or password" };
-  }
-  await clear(emailKey);
-  await createSession({ uid: u.id, email, role: u.role as string, v: u.token_version });
+  const result = await authenticate(email, password, ip);
+  if ("error" in result) return { error: result.error };
+  const u = result.user;
+  await createSession({ uid: u.id, email, role: u.role, v: u.token_version });
   redirect(u.must_change ? "/account" : homeFor(effectivePermissions(u.role, u.permissions)));
 }
 

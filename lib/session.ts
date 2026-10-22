@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import { sql } from "./db";
@@ -10,11 +10,13 @@ export type Session = { uid: number; email: string; role: string; v: number };
 const COOKIE = "session";
 const key = () => new TextEncoder().encode(process.env.SESSION_SECRET);
 
+// The signed token that proves who someone is: set as a cookie for the website, sent as a Bearer
+// header by the Android app. Either way it is checked against the database on every request.
+export const signToken = (s: Session, lifetime: string) =>
+  new SignJWT({ ...s }).setProtectedHeader({ alg: "HS256" }).setExpirationTime(lifetime).sign(key());
+
 export async function createSession(s: Session) {
-  const token = await new SignJWT({ ...s })
-    .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime("8h")
-    .sign(key());
+  const token = await signToken(s, "8h");
   (await cookies()).set(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -25,7 +27,8 @@ export async function createSession(s: Session) {
 }
 
 export async function getSession(): Promise<Session | null> {
-  const token = (await cookies()).get(COOKIE)?.value;
+  const bearer = (await headers()).get("authorization");
+  const token = bearer?.startsWith("Bearer ") ? bearer.slice(7).trim() : (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, key());
