@@ -138,7 +138,12 @@ fun AccountScreen(user: User) {
                     sound = it
                     container.store.sound = it
                 }
-                OutlinedButton(onClick = { Tones.play(Tone.NewRequest); Tones.vibrate(context, Tone.NewRequest) }, shape = RoundedCornerShape(10.dp)) { Text("Test sound") }
+                var silence by remember { mutableStateOf<String?>(null) }
+                OutlinedButton(
+                    onClick = { silence = Tones.silenceReason(context); Tones.play(Tone.NewRequest); Tones.vibrate(context, Tone.NewRequest) },
+                    shape = RoundedCornerShape(10.dp),
+                ) { Text("Test sound") }
+                silence?.let { ErrorNote(it) }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 SwitchRow("Alerts when the app is closed", "Keeps checking for new requests and codes. Android shows a small ongoing notification.", background, ::setBackground)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

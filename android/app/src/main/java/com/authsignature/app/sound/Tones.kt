@@ -179,33 +179,58 @@ object Tones {
         return peak to loud * 0.05f
     }
 
-    /** Plays the tone through the media stream, so it is heard when the media volume is up. */
+    /**
+     * Plays the tone on the notification volume (the one people keep up so they hear their phone ring),
+     * not the media volume, which is usually turned all the way down. Streams from its own thread.
+     */
     fun play(tone: Tone) {
         val pcm = render(tone)
-        val track = AudioTrack.Builder()
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
-            .setAudioFormat(
-                AudioFormat.Builder()
+        Thread {
+            var track: AudioTrack? = null
+            try {
+                val format = AudioFormat.Builder()
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                     .setSampleRate(RATE)
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                    .build(),
-            )
-            .setBufferSizeInBytes(pcm.size * 2)
-            .setTransferMode(AudioTrack.MODE_STATIC)
-            .build()
-        track.write(pcm, 0, pcm.size)
-        track.setNotificationMarkerPosition(pcm.size - 1)
-        track.setPlaybackPositionUpdateListener(object : AudioTrack.OnPlaybackPositionUpdateListener {
-            override fun onMarkerReached(t: AudioTrack) = t.release()
-            override fun onPeriodicNotification(t: AudioTrack) = Unit
-        })
-        track.play()
+                    .build()
+                val minimum = AudioTrack.getMinBufferSize(RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
+                track = AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build(),
+                    )
+                    .setAudioFormat(format)
+                    .setBufferSizeInBytes(maxOf(minimum, 16384))
+                    .setTransferMode(AudioTrack.MODE_STREAM)
+                    .build()
+                track.setVolume(1f)
+                track.play()
+                var offset = 0
+                while (offset < pcm.size) {
+                    val written = track.write(pcm, offset, minOf(4096, pcm.size - offset))
+                    if (written <= 0) break
+                    offset += written
+                }
+                // Let the last samples play out before the track is released.
+                Thread.sleep(250)
+            } catch (_: Exception) {
+            } finally {
+                runCatching { track?.stop() }
+                runCatching { track?.release() }
+            }
+        }.start()
+    }
+
+    /** Why a tone may be silent right now, or null when the phone should be able to play it. */
+    fun silenceReason(context: Context): String? {
+        val audio = context.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager ?: return null
+        return when {
+            audio.ringerMode != android.media.AudioManager.RINGER_MODE_NORMAL -> "The phone is on silent or vibrate. Switch it to sound to hear tones."
+            audio.getStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION) == 0 -> "The notification volume is at zero. Raise it in the phone's sound settings."
+            else -> null
+        }
     }
 
     fun vibrate(context: Context, tone: Tone) {
