@@ -34,6 +34,7 @@ class Api(private val baseUrl: String, private val token: () -> String?) {
         val builder = Request.Builder().url(baseUrl.trimEnd('/') + "/api/mobile" + path)
         token()?.let { builder.header("Authorization", "Bearer $it") }
         builder.header("Accept", "application/json")
+        builder.header("Accept-Language", com.authsignature.app.i18n.I18n.lang)
         if (method == "POST") {
             builder.post((body ?: JsonObject(emptyMap())).toString().toRequestBody("application/json".toMediaType()))
         } else {

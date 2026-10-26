@@ -33,6 +33,16 @@ val Context.container: AppContainer get() = (applicationContext as AuthApp).cont
 /** Everything the screens share: sign-in state, the API client, notifications and sound. */
 class AppContainer(val app: Application, apiBase: String = BuildConfig.API_BASE) {
     val store = SessionStore(app)
+
+    init {
+        com.authsignature.app.i18n.I18n.set(store.language ?: com.authsignature.app.i18n.I18n.systemLang())
+    }
+
+    fun setLanguage(lang: String) {
+        store.language = lang
+        com.authsignature.app.i18n.I18n.set(lang)
+        NotificationHelper.createChannels(app)
+    }
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val api = Api(apiBase) { store.token }
 

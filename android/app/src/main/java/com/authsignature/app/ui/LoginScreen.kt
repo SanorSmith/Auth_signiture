@@ -29,7 +29,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -75,7 +74,7 @@ fun PasswordField(
         keyboardActions = KeyboardActions(onDone = { onDone() }, onGo = { onDone() }),
         trailingIcon = {
             IconButton(onClick = { shown = !shown }) {
-                Icon(if (shown) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, contentDescription = if (shown) "Hide password" else "Show password")
+                Icon(if (shown) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, contentDescription = com.authsignature.app.i18n.t(if (shown) "Hide password" else "Show password"))
             }
         },
     )

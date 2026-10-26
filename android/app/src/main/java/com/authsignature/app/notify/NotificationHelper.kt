@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import com.authsignature.app.MainActivity
 import com.authsignature.app.R
 import com.authsignature.app.data.Notice
+import com.authsignature.app.i18n.t
 
 /**
  * System notifications for when the app is closed. They use the device's own default notification
@@ -28,25 +29,25 @@ object NotificationHelper {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_REQUESTS, "New requests", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "A client asked for a verification code"
+            NotificationChannel(CHANNEL_REQUESTS, t("New requests"), NotificationManager.IMPORTANCE_HIGH).apply {
+                description = t("A client asked for a verification code")
                 enableVibration(true)
             },
         )
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_CODES, "Your requests", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "Your code is ready, or your request was denied or removed"
+            NotificationChannel(CHANNEL_CODES, t("Your requests"), NotificationManager.IMPORTANCE_HIGH).apply {
+                description = t("Your code is ready, or your request was denied or removed")
                 enableVibration(true)
             },
         )
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ACCOUNT, "Account", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "Password reset requests and changes to your access"
+            NotificationChannel(CHANNEL_ACCOUNT, t("Account"), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = t("Password reset requests and changes to your access")
             },
         )
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_SERVICE, "Background alerts", NotificationManager.IMPORTANCE_MIN).apply {
-                description = "Shown while the app checks for notifications in the background"
+            NotificationChannel(CHANNEL_SERVICE, t("Background alerts"), NotificationManager.IMPORTANCE_MIN).apply {
+                description = t("Shown while the app checks for notifications in the background")
                 setShowBadge(false)
             },
         )
@@ -94,7 +95,7 @@ object NotificationHelper {
         NotificationCompat.Builder(context, CHANNEL_SERVICE)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Auth Signature")
-            .setContentText("Watching for new requests and codes")
+            .setContentText(t("Watching for new requests and codes"))
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setContentIntent(openApp(context, null))

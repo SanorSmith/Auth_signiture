@@ -27,7 +27,6 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -143,7 +142,7 @@ fun MainScaffold(user: User, openUrl: String?, onUrlHandled: () -> Unit) {
             scope.launch {
                 val result = snackbar.showSnackbar(
                     message = "${notice.title}\n${notice.body}",
-                    actionLabel = "View",
+                    actionLabel = com.authsignature.app.i18n.t("View"),
                     withDismissAction = true,
                     duration = SnackbarDuration.Long,
                 )
@@ -168,7 +167,7 @@ fun MainScaffold(user: User, openUrl: String?, onUrlHandled: () -> Unit) {
                 actions = {
                     IconButton(onClick = { showNotifications = true }) {
                         BadgedBox(badge = { if (unread > 0) Badge { Text(if (unread > 9) "9+" else unread.toString()) } }) {
-                            Icon(Icons.Filled.Notifications, contentDescription = "Notifications")
+                            Icon(Icons.Filled.Notifications, contentDescription = com.authsignature.app.i18n.t("Notifications"))
                         }
                     }
                 },

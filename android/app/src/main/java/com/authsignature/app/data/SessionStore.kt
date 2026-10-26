@@ -37,6 +37,11 @@ class SessionStore(context: Context) {
         get() = prefs.getBoolean(KEY_SOUND, true)
         set(value) = prefs.edit().putBoolean(KEY_SOUND, value).apply()
 
+    /** "sv" or "en"; null until the person picks one (then the phone's language is used). */
+    var language: String?
+        get() = prefs.getString(KEY_LANG, null)
+        set(value) = prefs.edit().apply { if (value == null) remove(KEY_LANG) else putString(KEY_LANG, value) }.apply()
+
     /** Keep checking for notifications while the app is closed (a small ongoing notification shows). */
     var backgroundAlerts: Boolean
         get() = prefs.getBoolean(KEY_BACKGROUND, true)
@@ -53,6 +58,7 @@ class SessionStore(context: Context) {
     private companion object {
         const val KEY_TOKEN = "token"
         const val KEY_USER = "user"
+        const val KEY_LANG = "language"
         const val KEY_SOUND = "sound"
         const val KEY_BACKGROUND = "background_alerts"
         const val KEY_ASKED = "asked_background"

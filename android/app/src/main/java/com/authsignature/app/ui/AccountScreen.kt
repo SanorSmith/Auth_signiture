@@ -23,7 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -128,6 +127,21 @@ fun AccountScreen(user: User) {
                 Text(user.email, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (user.isAdmin) Chip("Administrator") else user.perms.forEach { Chip(Permissions.label(it)) }
+                }
+            }
+        }
+
+        AppCard {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Language", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("sv" to "Svenska", "en" to "English").forEach { (code, name) ->
+                        if (com.authsignature.app.i18n.I18n.lang == code) {
+                            Button(onClick = { container.setLanguage(code) }, shape = RoundedCornerShape(10.dp)) { Text(name) }
+                        } else {
+                            OutlinedButton(onClick = { container.setLanguage(code) }, shape = RoundedCornerShape(10.dp)) { Text(name) }
+                        }
+                    }
                 }
             }
         }
