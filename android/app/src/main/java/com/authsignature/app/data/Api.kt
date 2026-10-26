@@ -79,8 +79,8 @@ class Api(private val baseUrl: String, private val token: () -> String?) {
     // --- client and monitor ----------------------------------------------------------------
     suspend fun client() = json.decodeFromString<ClientState>(call("GET", "/client"))
 
-    suspend fun request(code: String, note: String?) =
-        json.decodeFromString<ActionResult>(call("POST", "/request", obj("code" to code, "note" to note?.takeIf { it.isNotBlank() })))
+    suspend fun request(code: String, supplier: String, colli: String) =
+        json.decodeFromString<ActionResult>(call("POST", "/request", obj("code" to code, "supplier" to supplier, "colli" to colli)))
 
     suspend fun lookup(code: String): String =
         json.decodeFromString<LookupResult>(call("POST", "/lookup", obj("code" to code))).vcode.orEmpty()

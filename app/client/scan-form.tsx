@@ -2,19 +2,24 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { requestVerification } from "@/lib/actions";
-import { NOTE_MAX } from "@/lib/codes";
+import { SUPPLIER_MAX } from "@/lib/codes";
 import { signal } from "@/lib/tones";
 import { ScanInput } from "../scan-input";
 
 // A Zebra scanner in keyboard (HID / DataWedge) mode types the digits and presses Enter.
-// Type the note first, then scan: the scan submits the request together with the note.
+// Type the supplier and the number of colli first, then scan: the scan submits the request with them.
 export function ScanForm() {
   const [state, action, pending] = useActionState(requestVerification, null);
   const code = useRef<HTMLInputElement>(null);
-  const [note, setNote] = useState("");
+  const [supplier, setSupplier] = useState("");
+  const [colli, setColli] = useState("");
+  const colliBox = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (state?.ok) setNote("");
+    if (state?.ok) {
+      setSupplier("");
+      setColli("");
+    }
     // A short sound confirms what just happened to your scan.
     if (state?.ok) void signal("sent");
     else if (state?.error) void signal("error");
@@ -23,25 +28,44 @@ export function ScanForm() {
   return (
     <form action={action} className="flex flex-col gap-4">
       <div>
-        <div className="flex items-baseline justify-between">
-          <label htmlFor="note" className="label">Note <span className="font-normal">(optional)</span></label>
-          <span className="mb-1 text-xs text-muted">{note.length}/{NOTE_MAX}</span>
-        </div>
+        <label htmlFor="supplier" className="label">Supplier name</label>
         <input
-          id="note"
-          name="note"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
+          id="supplier"
+          name="supplier"
+          value={supplier}
+          onChange={(e) => setSupplier(e.target.value)}
           onKeyDown={(e) => {
-            // Enter in the note box moves on to the scan box instead of submitting.
+            // Enter moves on to the next box instead of submitting.
+            if (e.key === "Enter") {
+              e.preventDefault();
+              colliBox.current?.focus();
+            }
+          }}
+          maxLength={SUPPLIER_MAX}
+          required
+          autoComplete="off"
+          placeholder="Who delivers?"
+          className="input"
+        />
+      </div>
+      <div>
+        <label htmlFor="colli" className="label">Number of colli</label>
+        <input
+          id="colli"
+          name="colli"
+          ref={colliBox}
+          value={colli}
+          onChange={(e) => setColli(e.target.value.replace(/\D/g, "").slice(0, 4))}
+          onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
               code.current?.focus();
             }
           }}
-          maxLength={NOTE_MAX}
+          inputMode="numeric"
+          required
           autoComplete="off"
-          placeholder="What is this request for?"
+          placeholder="How many packages?"
           className="input"
         />
       </div>

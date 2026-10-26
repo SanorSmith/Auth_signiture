@@ -40,8 +40,8 @@ function Note({ note, askedBy, issuedBy }: { note: string | null; askedBy: strin
         </div>
       )}
       <div>
-        <p className="mb-0.5 text-xs font-medium text-muted">Client note</p>
-        {note ? <p>{note}</p> : <p className="text-muted">No note.</p>}
+        <p className="mb-0.5 text-xs font-medium text-muted">Delivery</p>
+        {note ? <p>{note}</p> : <p className="text-muted">No delivery details.</p>}
       </div>
     </div>
   );
@@ -103,8 +103,8 @@ export default async function AdminPage() {
                       <span className="truncate">Asked by {r.email ?? "Unknown"}</span>
                       <span>·</span>
                       <span>{when(r.created_at)}</span>
-                      {r.note && <span className="badge bg-accent-soft text-accent">Note</span>}
                     </span>
+                    {r.note && <span className="truncate text-sm font-medium text-accent">{r.note}</span>}
                   </summary>
                   <Note note={r.note} askedBy={r.email} />
                 </details>
@@ -128,7 +128,7 @@ export default async function AdminPage() {
                       <span className="block truncate text-xs text-muted">Asked by {r.email ?? "Unknown"}</span>
                       <span className="block truncate text-xs text-muted">Issued by {r.issuer ?? "Unknown"}</span>
                       <span className="block text-xs text-muted">{when(r.created_at)}</span>
-                      {r.note && <span className="badge mt-1 bg-accent-soft text-accent">Note</span>}
+                      {r.note && <span className="block truncate text-sm font-medium text-accent">{r.note}</span>}
                     </span>
                     <span className="font-mono text-xl font-semibold tracking-widest">{r.vcode.trim()}</span>
                   </summary>

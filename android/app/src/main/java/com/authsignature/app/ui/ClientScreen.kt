@@ -49,7 +49,7 @@ import com.authsignature.app.scan.ScanBus
 import com.authsignature.app.sound.Tone
 import kotlinx.coroutines.launch
 
-private const val NOTE_MAX = 50
+private const val SUPPLIER_MAX = 36
 
 /** Scan a number, see the code the admin issues for it, and the last three issued codes. */
 @Composable
@@ -60,13 +60,20 @@ fun ClientScreen() {
     val focus = remember { FocusRequester() }
 
     var number by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
+    var supplier by remember { mutableStateOf("") }
+    var colli by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var okMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     fun send(code: String) {
         if (busy) return
+        if (supplier.trim().length < 2 || colli.toIntOrNull()?.let { it in 1..9999 } != true) {
+            errorMessage = "Enter the supplier name and the number of colli first"
+            okMessage = null
+            container.signal(Tone.Error)
+            return
+        }
         if (code.length != 10) {
             errorMessage = "Not a valid 10-digit number"
             okMessage = null
@@ -78,10 +85,11 @@ fun ClientScreen() {
         errorMessage = null
         scope.launch {
             try {
-                okMessage = container.api.request(code, note.trim()).message ?: "Request sent, waiting for the admin"
+                okMessage = container.api.request(code, supplier.trim(), colli).message ?: "Request sent, waiting for the admin"
                 container.signal(Tone.Sent)
                 number = ""
-                note = ""
+                supplier = ""
+                colli = ""
                 remote.refresh()
             } catch (e: ApiException) {
                 if (e.unauthorized) container.signOut() else errorMessage = e.message
@@ -115,12 +123,21 @@ fun ClientScreen() {
         AppCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it.take(NOTE_MAX) },
-                    label = { Text("Note (optional)") },
-                    placeholder = { Text("What is this request for?") },
-                    supportingText = { Text("${note.length}/$NOTE_MAX", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End) },
+                    value = supplier,
+                    onValueChange = { supplier = it.take(SUPPLIER_MAX) },
+                    label = { Text("Supplier name") },
+                    placeholder = { Text("Who delivers?") },
                     singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = colli,
+                    onValueChange = { colli = it.filter(Char::isDigit).take(4) },
+                    label = { Text("Number of colli") },
+                    placeholder = { Text("How many packages?") },
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )

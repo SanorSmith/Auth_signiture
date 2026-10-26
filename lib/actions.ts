@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { authenticate } from "./auth";
 import { later, notifyPermission, notifyUsers, type Notice } from "./notify";
 import { sql } from "./db";
-import { CODE_RE, NOTE_MAX, encryptPending, hashCode, vcodeFromCounter } from "./codes";
+import { CODE_RE, deliveryNote, encryptPending, hashCode, vcodeFromCounter } from "./codes";
 import { effectivePermissions, homeFor } from "./permissions";
 import { createSession, destroySession, requirePermission } from "./session";
 
@@ -54,7 +54,9 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
   const s = await requirePermission("request");
   const code = String(form.get("code") ?? "").trim();
   if (!CODE_RE.test(code)) return { error: "Not a valid 10-digit number" };
-  const note = String(form.get("note") ?? "").trim().slice(0, NOTE_MAX) || null;
+  const delivery = deliveryNote(form.get("supplier"), form.get("colli"));
+  if ("error" in delivery) return { error: delivery.error };
+  const note: string = delivery.note;
   const h = hashCode(code);
 
   const found = await sql`

@@ -79,7 +79,7 @@ check("client screen starts empty", empty.status === 200 && empty.body?.status =
 
 const invalid = await call("POST", "/api/mobile/request", client, { code: "12345" });
 check("an invalid number is refused", invalid.status === 400, invalid);
-const reqA = await call("POST", "/api/mobile/request", client, { code: NUMBER_A, note: "Dock 4 delivery" });
+const reqA = await call("POST", "/api/mobile/request", client, { code: NUMBER_A, supplier: "Acme Freight", colli: 12 });
 check("client requests a code", reqA.status === 200 && reqA.body?.ok === true, reqA);
 const waiting = await call("GET", "/api/mobile/client", client);
 check("client sees 'waiting'", waiting.body?.status === "waiting", waiting);
@@ -100,7 +100,7 @@ const adminView = await call("GET", "/api/mobile/admin", admin);
 const pendingA = adminView.body?.pending?.find((p) => p.number === NUMBER_A);
 const pendingB = adminView.body?.pending?.find((p) => p.number === NUMBER_B);
 check("admin sees both requests with their numbers", !!pendingA && !!pendingB && pendingA.askedBy === CLIENT.email, adminView.body?.pending);
-check("the note comes through", pendingA?.note === "Dock 4 delivery", pendingA);
+check("the note comes through", pendingA?.note === "Acme Freight · 12 colli", pendingA);
 
 const issue = await call("POST", "/api/mobile/admin/issue", admin, { id: pendingA?.id });
 check("admin issues a code", issue.status === 200, issue);

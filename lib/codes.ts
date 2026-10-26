@@ -50,3 +50,19 @@ export function vcodeFromCounter(counter: number) {
   const letter = String.fromCharCode(65 + Math.floor(i / DIGITS));
   return letter + String(i % DIGITS).padStart(5, "0");
 }
+
+// A request must say who delivers and how many colli (packages) it has. They are kept together in the
+// request's note, which is what the admin sees.
+export const SUPPLIER_MAX = 36;
+export const COLLI_MAX = 9999;
+
+export function deliveryNote(supplierRaw: unknown, colliRaw: unknown): { note: string } | { error: string } {
+  const supplier = String(supplierRaw ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
+  if (supplier.length < 2) return { error: "Enter the supplier name" };
+  if (supplier.length > SUPPLIER_MAX) return { error: `The supplier name can be at most ${SUPPLIER_MAX} characters` };
+  const colliText = String(colliRaw ?? "").trim();
+  if (!/^\d{1,4}$/.test(colliText) || Number(colliText) < 1 || Number(colliText) > COLLI_MAX) {
+    return { error: `Enter the number of colli, from 1 to ${COLLI_MAX}` };
+  }
+  return { note: `${supplier} · ${Number(colliText)} colli` };
+}
