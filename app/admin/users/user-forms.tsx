@@ -5,26 +5,28 @@ import { createUser, deleteUser, resetPassword, updateUser } from "@/lib/user-ac
 import { ALL_PERMISSIONS, permissionLabel, type Permission } from "@/lib/permissions";
 import { signal } from "@/lib/tones";
 import { useActionTone } from "@/lib/use-action-tone";
+import { useT } from "../../lang-provider";
 import { PasswordInput } from "../../password-input";
 import { PermissionPicker } from "./permission-picker";
 
 export function CreateUserForm({ options, adminAllowed }: { options: Permission[]; adminAllowed: boolean }) {
+  const t = useT();
   const [state, action, pending] = useActionState(createUser, null);
   useActionTone(state);
   return (
     <form action={action} className="flex flex-col gap-4">
       <div>
-        <label htmlFor="new-email" className="label">Email</label>
+        <label htmlFor="new-email" className="label">{t("Email")}</label>
         <input id="new-email" name="email" type="email" required placeholder="name@company.com" className="input" />
       </div>
       <div>
-        <label htmlFor="new-password" className="label">Initial password</label>
-        <PasswordInput id="new-password" name="password" minLength={8} required autoComplete="new-password" placeholder="At least 8 characters" />
+        <label htmlFor="new-password" className="label">{t("Initial password")}</label>
+        <PasswordInput id="new-password" name="password" minLength={8} required autoComplete="new-password" placeholder={t("At least 8 characters")} />
       </div>
       <PermissionPicker idPrefix="new" options={options} defaults={[]} adminAllowed={adminAllowed} />
-      <button disabled={pending} className="btn btn-primary">{pending ? "Creating…" : "Create user"}</button>
-      {state?.error && <p role="alert" className="alert alert-error">{state.error}</p>}
-      {state?.ok && <p role="status" className="alert alert-success">{state.ok}</p>}
+      <button disabled={pending} className="btn btn-primary">{pending ? t("Creating…") : t("Create user")}</button>
+      {state?.error && <p role="alert" className="alert alert-error">{t(state.error)}</p>}
+      {state?.ok && <p role="status" className="alert alert-success">{t(state.ok)}</p>}
     </form>
   );
 }
@@ -43,6 +45,7 @@ type Props = {
 };
 
 export function UserRow({ id, email, isAdmin, perms, isSelf, resetRequested, created, canEdit, canReset, canDelete }: Props) {
+  const t = useT();
   const [saved, save, saving] = useActionState(updateUser, null);
   const [reset, doReset, resetting] = useActionState(resetPassword, null);
   const [removed, remove, removing] = useActionState(deleteUser, null);
@@ -67,68 +70,68 @@ export function UserRow({ id, email, isAdmin, perms, isSelf, resetRequested, cre
             <p className="truncate font-medium">{email}</p>
             <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
               {isAdmin ? (
-                <span className="badge bg-accent-soft text-accent">Administrator</span>
+                <span className="badge bg-accent-soft text-accent">{t("Administrator")}</span>
               ) : (
                 perms.map((p) => (
-                  <span key={p} className="badge border border-line bg-page text-muted">{permissionLabel(p)}</span>
+                  <span key={p} className="badge border border-line bg-page text-muted">{t(permissionLabel(p))}</span>
                 ))
               )}
-              {!isAdmin && perms.length === 0 && <span className="badge border border-line bg-page text-muted">No access</span>}
-              {resetRequested && <span className="badge bg-danger text-white">Reset requested</span>}
+              {!isAdmin && perms.length === 0 && <span className="badge border border-line bg-page text-muted">{t("No access")}</span>}
+              {resetRequested && <span className="badge bg-danger text-white">{t("Reset requested")}</span>}
             </p>
-            <p className="mt-1 text-xs text-muted">Created {created}{isSelf ? " · You" : ""}</p>
+            <p className="mt-1 text-xs text-muted">{t("Created")} {created}{isSelf ? ` · ${t("You")}` : ""}</p>
           </div>
         </div>
       ) : (
         <form action={save} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={id} />
           <div>
-            <label htmlFor={`email-${id}`} className="label">Email</label>
+            <label htmlFor={`email-${id}`} className="label">{t("Email")}</label>
             <input id={`email-${id}`} name="email" type="email" defaultValue={email} required className="input" />
           </div>
           <PermissionPicker idPrefix={`edit-${id}`} options={ALL_PERMISSIONS} defaults={perms} adminAllowed adminDefault={isAdmin} lockAdmin={isSelf} />
           <div className="flex gap-2">
-            <button disabled={saving} className="btn btn-primary">{saving ? "Saving…" : "Save"}</button>
-            <button type="button" onClick={() => setEditing(false)} className="btn btn-secondary">Cancel</button>
+            <button disabled={saving} className="btn btn-primary">{saving ? t("Saving…") : t("Save")}</button>
+            <button type="button" onClick={() => setEditing(false)} className="btn btn-secondary">{t("Cancel")}</button>
           </div>
         </form>
       )}
 
       {!editing && (canEdit || canReset || canDelete) && (
         <div className="flex flex-wrap items-center gap-2">
-          {canEdit && <button type="button" onClick={() => setEditing(true)} className="btn btn-secondary btn-sm">Edit</button>}
+          {canEdit && <button type="button" onClick={() => setEditing(true)} className="btn btn-secondary btn-sm">{t("Edit")}</button>}
           {canReset && (
             <form action={doReset}>
               <input type="hidden" name="id" value={id} />
-              <button disabled={resetting} className="btn btn-secondary btn-sm">{resetting ? "Resetting…" : "Reset password"}</button>
+              <button disabled={resetting} className="btn btn-secondary btn-sm">{resetting ? t("Resetting…") : t("Reset password")}</button>
             </form>
           )}
           {canDelete && !confirming && (
-            <button type="button" onClick={() => setConfirming(true)} className="btn btn-danger-ghost btn-sm ml-auto">Delete</button>
+            <button type="button" onClick={() => setConfirming(true)} className="btn btn-danger-ghost btn-sm ml-auto">{t("Delete")}</button>
           )}
           {canDelete && confirming && (
             <form action={remove} className="ml-auto flex items-center gap-2">
               <input type="hidden" name="id" value={id} />
-              <span className="text-xs text-muted">Delete this user?</span>
+              <span className="text-xs text-muted">{t("Delete this user?")}</span>
               {/* The row disappears once the user is deleted, so the sound plays on the click itself. */}
-              <button disabled={removing} onClick={() => void signal("deleted")} className="btn btn-danger btn-sm">Yes, delete</button>
-              <button type="button" onClick={() => setConfirming(false)} className="btn btn-secondary btn-sm">Cancel</button>
+              <button disabled={removing} onClick={() => void signal("deleted")} className="btn btn-danger btn-sm">{t("Yes, delete")}</button>
+              <button type="button" onClick={() => setConfirming(false)} className="btn btn-secondary btn-sm">{t("Cancel")}</button>
             </form>
           )}
         </div>
       )}
 
-      {saved?.error && <p role="alert" className="alert alert-error">{saved.error}</p>}
-      {removed?.error && <p role="alert" className="alert alert-error">{removed.error}</p>}
-      {reset?.error && <p role="alert" className="alert alert-error">{reset.error}</p>}
+      {saved?.error && <p role="alert" className="alert alert-error">{t(saved.error)}</p>}
+      {removed?.error && <p role="alert" className="alert alert-error">{t(removed.error)}</p>}
+      {reset?.error && <p role="alert" className="alert alert-error">{t(reset.error)}</p>}
       {reset?.code && (
         <div className="alert alert-success flex flex-col gap-2">
-          <p>{reset.ok}</p>
+          <p>{t(reset.ok ?? "")}</p>
           <div className="flex items-center gap-2">
             <code className="rounded-md bg-surface px-2 py-1 font-mono text-base text-ink">{reset.code}</code>
-            <button type="button" onClick={() => navigator.clipboard?.writeText(reset.code!)} className="btn btn-secondary btn-sm">Copy</button>
+            <button type="button" onClick={() => navigator.clipboard?.writeText(reset.code!)} className="btn btn-secondary btn-sm">{t("Copy")}</button>
           </div>
-          <p className="text-xs opacity-80">Give this to the user. They must choose a new password when they sign in.</p>
+          <p className="text-xs opacity-80">{t("Give this to the user. They must choose a new password when they sign in.")}</p>
         </div>
       )}
     </div>

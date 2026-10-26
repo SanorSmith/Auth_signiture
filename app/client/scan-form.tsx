@@ -4,11 +4,13 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { requestVerification } from "@/lib/actions";
 import { COLLI_TYPES, COLLI_TYPE_MAX, SUPPLIER_MAX } from "@/lib/codes";
 import { signal } from "@/lib/tones";
+import { useT } from "../lang-provider";
 import { ScanInput } from "../scan-input";
 
 // A Zebra scanner in keyboard (HID / DataWedge) mode types the digits and presses Enter.
 // Type the supplier and the number of colli first, then scan: the scan submits the request with them.
 export function ScanForm() {
+  const t = useT();
   const [state, action, pending] = useActionState(requestVerification, null);
   const code = useRef<HTMLInputElement>(null);
   const [supplier, setSupplier] = useState("");
@@ -31,7 +33,7 @@ export function ScanForm() {
   return (
     <form action={action} className="flex flex-col gap-4">
       <div>
-        <label htmlFor="supplier" className="label">Supplier name</label>
+        <label htmlFor="supplier" className="label">{t("Supplier name")}</label>
         <input
           id="supplier"
           name="supplier"
@@ -47,12 +49,12 @@ export function ScanForm() {
           maxLength={SUPPLIER_MAX}
           required
           autoComplete="off"
-          placeholder="Who delivers?"
+          placeholder={t("Who delivers?")}
           className="input"
         />
       </div>
       <div>
-        <label htmlFor="colli" className="label">Number of colli</label>
+        <label htmlFor="colli" className="label">{t("Number of colli")}</label>
         <input
           id="colli"
           name="colli"
@@ -68,12 +70,12 @@ export function ScanForm() {
           inputMode="numeric"
           required
           autoComplete="off"
-          placeholder="How many packages?"
+          placeholder={t("How many packages?")}
           className="input"
         />
       </div>
       <div>
-        <label htmlFor="colliType" className="label">Colli type</label>
+        <label htmlFor="colliType" className="label">{t("Colli type")}</label>
         <input
           id="colliType"
           name="colliType"
@@ -90,16 +92,16 @@ export function ScanForm() {
           maxLength={COLLI_TYPE_MAX}
           required
           autoComplete="off"
-          placeholder="Pallet, box, carton…"
+          placeholder={t("Pallet, box, carton…")}
           className="input"
         />
-        <datalist id="colli-types">{COLLI_TYPES.map((t) => <option key={t} value={t} />)}</datalist>
+        <datalist id="colli-types">{COLLI_TYPES.map((ct) => <option key={ct} value={t(ct)} />)}</datalist>
       </div>
       <ScanInput id="code" name="code" label="10-digit number" placeholder="Scan the number" inputRef={code} resetKey={state} />
       {/* With two text inputs, Enter (the scanner's suffix) only submits when a submit button exists. */}
-      <button disabled={pending} className="btn btn-primary">{pending ? "Sending…" : "Send request"}</button>
-      {!pending && state?.ok && <p role="status" className="alert alert-success">{state.ok}</p>}
-      {!pending && state?.error && <p role="alert" className="alert alert-error">{state.error}</p>}
+      <button disabled={pending} className="btn btn-primary">{pending ? t("Sending…") : t("Send request")}</button>
+      {!pending && state?.ok && <p role="status" className="alert alert-success">{t(state.ok)}</p>}
+      {!pending && state?.error && <p role="alert" className="alert alert-error">{t(state.error)}</p>}
     </form>
   );
 }

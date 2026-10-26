@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Permission } from "@/lib/permissions";
+import type { T } from "@/lib/i18n";
+import { useT } from "./lang-provider";
 import { getPushKey, markNotificationsRead, removePushSubscription, savePushSubscription } from "@/lib/push-actions";
 import {
   ACTION_TONES,
@@ -34,12 +36,12 @@ const DOT: Record<string, string> = {
   access_changed: "bg-accent",
 };
 
-function ago(ms: number) {
+function ago(ms: number, t: T) {
   const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-  return `${Math.floor(s / 86400)} d ago`;
+  if (s < 60) return t("just now");
+  if (s < 3600) return t(`${Math.floor(s / 60)} min ago`);
+  if (s < 86400) return t(`${Math.floor(s / 3600)} h ago`);
+  return t(`${Math.floor(s / 86400)} d ago`);
 }
 
 function keyToBytes(b64: string) {
@@ -53,6 +55,7 @@ function keyToBytes(b64: string) {
 // different tone for each kind while the app is open, and (with device notifications on) alerts the
 // phone even when the app is closed.
 export function NotificationCenter({ perms }: { perms: Permission[] }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [all, setAll] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
@@ -241,15 +244,15 @@ export function NotificationCenter({ perms }: { perms: Permission[] }) {
   };
 
   // Only the tones that can reach this person (administrators hold every permission).
-  const mine = (list: ToneInfo[]) => list.filter((t) => !t.needs || perms.includes(t.needs));
+  const mine = (list: ToneInfo[]) => list.filter((x) => !x.needs || perms.includes(x.needs));
 
-  const ToneRow = ({ t }: { t: ToneInfo }) => (
+  const ToneRow = ({ tone }: { tone: ToneInfo }) => (
     <li className="flex items-center justify-between gap-2">
       <span className="min-w-0">
-        <span className="block truncate text-sm">{t.label}</span>
-        <span className="block truncate text-xs text-muted">{t.hint} · {toneSeconds(t.kind).toFixed(1)} s</span>
+        <span className="block truncate text-sm">{t(tone.label)}</span>
+        <span className="block truncate text-xs text-muted">{t(tone.hint)} · {toneSeconds(tone.kind).toFixed(1)} s</span>
       </span>
-      <button type="button" onClick={() => preview(t.kind)} className="btn btn-secondary btn-sm shrink-0">Play</button>
+      <button type="button" onClick={() => preview(tone.kind)} className="btn btn-secondary btn-sm shrink-0">{t("Play")}</button>
     </li>
   );
 
@@ -258,7 +261,7 @@ export function NotificationCenter({ perms }: { perms: Permission[] }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        aria-label="Notifications"
+        aria-label={t("Notifications")}
         aria-expanded={open}
         className="btn btn-secondary btn-sm relative !px-2.5"
       >
@@ -275,12 +278,12 @@ export function NotificationCenter({ perms }: { perms: Permission[] }) {
       {open && (
         <div className="card fixed inset-x-3 top-14 z-20 flex max-h-[80vh] flex-col gap-4 overflow-y-auto p-4 shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Notifications</h2>
-            <button type="button" onClick={() => setOpen(false)} className="text-xs text-muted hover:text-ink">Close</button>
+            <h2 className="font-semibold">{t("Notifications")}</h2>
+            <button type="button" onClick={() => setOpen(false)} className="text-xs text-muted hover:text-ink">{t("Close")}</button>
           </div>
 
           <ul className="flex flex-col gap-1">
-            {items.length === 0 && <li className="rounded-lg border border-dashed border-line p-4 text-center text-sm text-muted">Nothing yet. New activity shows up here.</li>}
+            {items.length === 0 && <li className="rounded-lg border border-dashed border-line p-4 text-center text-sm text-muted">{t("Nothing yet. New activity shows up here.")}</li>}
             {(all ? items : items.slice(0, 5)).map((n) => (
               <li key={n.id}>
                 <Link
@@ -291,7 +294,7 @@ export function NotificationCenter({ perms }: { perms: Permission[] }) {
                   <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${DOT[n.kind] ?? "bg-muted"} ${n.read ? "opacity-40" : ""}`} />
                   <span className="min-w-0 flex-1">
                     <span className={`block truncate text-sm ${n.read ? "" : "font-semibold"}`}>{n.title}</span>
-                    <span className="block truncate text-xs text-muted">{n.body.length > 48 ? `${n.body.slice(0, 48)}…` : n.body} · {ago(n.at)}</span>
+                    <span className="block truncate text-xs text-muted">{n.body.length > 48 ? `${n.body.slice(0, 48)}…` : n.body} · {ago(n.at, t)}</span>
                   </span>
                 </Link>
               </li>
@@ -299,7 +302,7 @@ export function NotificationCenter({ perms }: { perms: Permission[] }) {
           </ul>
           {items.length > 5 && (
             <button type="button" onClick={() => setAll((a) => !a)} className="-mt-2 self-start text-xs text-accent">
-              {all ? "Show fewer" : `Show all ${items.length}`}
+              {all ? t("Show fewer") : t(`Show all ${items.length}`)}
             </button>
           )}
 
@@ -313,41 +316,41 @@ export function NotificationCenter({ perms }: { perms: Permission[] }) {
                   className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
                 />
                 <span>
-                  <span className="block font-medium">Play sounds</span>
-                  <span className="block text-xs text-muted">A different tone for each notification and action, on this device</span>
+                  <span className="block font-medium">{t("Play sounds")}</span>
+                  <span className="block text-xs text-muted">{t("A different tone for each notification and action, on this device")}</span>
                 </span>
               </label>
-              <button type="button" onClick={() => preview("new_request")} className="btn btn-secondary btn-sm shrink-0">Test sound</button>
+              <button type="button" onClick={() => preview("new_request")} className="btn btn-secondary btn-sm shrink-0">{t("Test sound")}</button>
             </div>
             {sound && blocked && (
-              <p className="alert alert-warn mt-2 text-xs">Sound is blocked. Tap anywhere on the page once, then press Test sound. If you still hear nothing, turn up the phone&apos;s media volume and check it is not on silent.</p>
+              <p className="alert alert-warn mt-2 text-xs">{t("Sound is blocked. Tap anywhere on the page once, then press Test sound. If you still hear nothing, turn up the phone's media volume and check it is not on silent.")}</p>
             )}
             <details className="mt-3">
-              <summary className="cursor-pointer text-sm font-medium text-accent">Hear the tones</summary>
-              <p className="mb-1 mt-2 text-xs font-medium text-muted">Notifications</p>
-              <ul className="flex flex-col gap-2">{mine(NOTIFICATION_TONES).map((t) => <ToneRow key={t.kind} t={t} />)}</ul>
-              <p className="mb-1 mt-3 text-xs font-medium text-muted">Your own actions</p>
-              <ul className="flex flex-col gap-2">{mine(ACTION_TONES).map((t) => <ToneRow key={t.kind} t={t} />)}</ul>
+              <summary className="cursor-pointer text-sm font-medium text-accent">{t("Hear the tones")}</summary>
+              <p className="mb-1 mt-2 text-xs font-medium text-muted">{t("Notifications")}</p>
+              <ul className="flex flex-col gap-2">{mine(NOTIFICATION_TONES).map((tone) => <ToneRow key={tone.kind} tone={tone} />)}</ul>
+              <p className="mb-1 mt-3 text-xs font-medium text-muted">{t("Your own actions")}</p>
+              <ul className="flex flex-col gap-2">{mine(ACTION_TONES).map((tone) => <ToneRow key={tone.kind} tone={tone} />)}</ul>
             </details>
           </div>
 
           <div className="border-t border-line pt-3">
-            <p className="text-sm font-medium">Device notifications</p>
-            <p className="mb-2 text-xs text-muted">Alerts on this device even when the app is closed, using the device&apos;s own notification sound.</p>
-            {push === "unsupported" && <p className="text-xs text-muted">Not available in this browser. Install the app on an Android phone to use it.</p>}
-            {push === "blocked" && <p className="alert alert-warn text-xs">Notifications are blocked for this site. Allow them in the browser&apos;s site settings.</p>}
+            <p className="text-sm font-medium">{t("Device notifications")}</p>
+            <p className="mb-2 text-xs text-muted">{t("Alerts on this device even when the app is closed, using the device's own notification sound.")}</p>
+            {push === "unsupported" && <p className="text-xs text-muted">{t("Not available in this browser. Install the app on an Android phone to use it.")}</p>}
+            {push === "blocked" && <p className="alert alert-warn text-xs">{t("Notifications are blocked for this site. Allow them in the browser's site settings.")}</p>}
             {(push === "off" || push === "busy" || push === "checking") && (
               <button type="button" disabled={push !== "off"} onClick={enablePush} className="btn btn-primary btn-sm">
-                {push === "busy" ? "Working…" : "Turn on device notifications"}
+                {push === "busy" ? t("Working…") : t("Turn on device notifications")}
               </button>
             )}
             {push === "on" && (
               <div className="flex items-center justify-between gap-2">
-                <span className="badge bg-success-soft text-success">On for this device</span>
-                <button type="button" onClick={disablePush} className="btn btn-secondary btn-sm">Turn off</button>
+                <span className="badge bg-success-soft text-success">{t("On for this device")}</span>
+                <button type="button" onClick={disablePush} className="btn btn-secondary btn-sm">{t("Turn off")}</button>
               </div>
             )}
-            {pushError && <p role="alert" className="alert alert-error mt-2 text-xs">{pushError}</p>}
+            {pushError && <p role="alert" className="alert alert-error mt-2 text-xs">{t(pushError)}</p>}
           </div>
         </div>
       )}
@@ -358,17 +361,17 @@ export function NotificationCenter({ perms }: { perms: Permission[] }) {
           <div className="fixed inset-x-3 bottom-4 z-30 flex flex-col gap-2 sm:inset-x-auto sm:right-4 sm:w-96">
             {locked && (
               <div role="alert" className="card flex items-center gap-3 border-warn/50 bg-warn-soft p-3 shadow-lg">
-                <span className="min-w-0 flex-1 text-sm text-warn">Sound is off until you tap. Phones keep it locked until then.</span>
-                <button type="button" onClick={enableSound} className="btn btn-primary btn-sm shrink-0">Enable sound</button>
+                <span className="min-w-0 flex-1 text-sm text-warn">{t("Sound is off until you tap. Phones keep it locked until then.")}</span>
+                <button type="button" onClick={enableSound} className="btn btn-primary btn-sm shrink-0">{t("Enable sound")}</button>
               </div>
             )}
             {push === "off" && !promptHidden && (
               <div className="card flex flex-col gap-2 p-3 shadow-lg">
-                <p className="text-sm font-medium">Get alerts even when the app is closed</p>
-                <p className="text-xs text-muted">Your phone will ring with its own notification sound when something needs you.</p>
+                <p className="text-sm font-medium">{t("Get alerts even when the app is closed")}</p>
+                <p className="text-xs text-muted">{t("Your phone will ring with its own notification sound when something needs you.")}</p>
                 <div className="flex gap-2">
-                  <button type="button" onClick={enablePush} className="btn btn-primary btn-sm">Turn on</button>
-                  <button type="button" onClick={hidePrompt} className="btn btn-secondary btn-sm">Not now</button>
+                  <button type="button" onClick={enablePush} className="btn btn-primary btn-sm">{t("Turn on")}</button>
+                  <button type="button" onClick={hidePrompt} className="btn btn-secondary btn-sm">{t("Not now")}</button>
                 </div>
               </div>
             )}
@@ -379,8 +382,8 @@ export function NotificationCenter({ perms }: { perms: Permission[] }) {
                   <p className="font-semibold">{toast.title}</p>
                   <p className="text-sm text-muted">{toast.body}</p>
                   <div className="mt-3 flex gap-2">
-                    <Link href={toast.url} onClick={() => setToast(null)} className="btn btn-primary btn-sm">View</Link>
-                    <button type="button" onClick={() => setToast(null)} className="btn btn-secondary btn-sm">Dismiss</button>
+                    <Link href={toast.url} onClick={() => setToast(null)} className="btn btn-primary btn-sm">{t("View")}</Link>
+                    <button type="button" onClick={() => setToast(null)} className="btn btn-secondary btn-sm">{t("Dismiss")}</button>
                   </div>
                 </div>
               </div>

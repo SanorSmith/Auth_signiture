@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { getT } from "@/lib/lang";
+import type { T } from "@/lib/i18n";
 import { requirePermission } from "@/lib/session";
 import { sql } from "@/lib/db";
 import { decryptPending } from "@/lib/codes";
@@ -8,11 +10,11 @@ import { PendingActions, RemoveAction } from "./request-actions";
 
 const when = (d: string) => new Date(d).toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", dateStyle: "short", timeStyle: "short" });
 
-function numberOf(blob: string | null) {
+function numberOf(blob: string | null, missing: string) {
   try {
-    return blob ? decryptPending(blob) : "Number not stored";
+    return blob ? decryptPending(blob) : missing;
   } catch {
-    return "Number not stored";
+    return missing;
   }
 }
 
@@ -26,22 +28,22 @@ function Tile({ label, value, tone = "" }: { label: string; value: number; tone?
 }
 
 // Click a row to see who asked, who issued the code, and the client's note.
-function Note({ note, askedBy, issuedBy }: { note: string | null; askedBy: string | null; issuedBy?: string | null }) {
+function Note({ note, askedBy, issuedBy, t }: { note: string | null; askedBy: string | null; issuedBy?: string | null; t: T }) {
   return (
     <div className="flex flex-col gap-2 border-t border-line bg-page/60 px-4 py-3 text-sm">
       <div>
-        <p className="mb-0.5 text-xs font-medium text-muted">Asked by</p>
-        <p className="break-all">{askedBy ?? "Unknown"}</p>
+        <p className="mb-0.5 text-xs font-medium text-muted">{t("Asked by")}</p>
+        <p className="break-all">{askedBy ?? t("Unknown")}</p>
       </div>
       {issuedBy !== undefined && (
         <div>
-          <p className="mb-0.5 text-xs font-medium text-muted">Code issued by</p>
-          <p className="break-all">{issuedBy ?? "Unknown"}</p>
+          <p className="mb-0.5 text-xs font-medium text-muted">{t("Code issued by")}</p>
+          <p className="break-all">{issuedBy ?? t("Unknown")}</p>
         </div>
       )}
       <div>
-        <p className="mb-0.5 text-xs font-medium text-muted">Delivery</p>
-        {note ? <p>{note}</p> : <p className="text-muted">No delivery details.</p>}
+        <p className="mb-0.5 text-xs font-medium text-muted">{t("Delivery")}</p>
+        {note ? <p>{t(note)}</p> : <p className="text-muted">{t("No delivery details.")}</p>}
       </div>
     </div>
   );
@@ -49,6 +51,7 @@ function Note({ note, askedBy, issuedBy }: { note: string | null; askedBy: strin
 
 export default async function AdminPage() {
   const s = await requirePermission("manage_requests");
+  const t = await getT();
   const canSeeResets = s.perms.includes("reset_passwords");
   const pending = await sql`
     SELECT c.id, c.pending_enc, c.note, c.created_at, COALESCE(u.email, c.requested_by_email) AS email FROM codes c
@@ -77,36 +80,36 @@ export default async function AdminPage() {
       <div className="flex flex-col gap-6">
         {resets > 0 && (
           <Link href="/admin/users" className="alert alert-warn flex items-center justify-between gap-3 hover:opacity-90">
-            <span>{resets} password reset request{resets > 1 ? "s" : ""} waiting.</span>
-            <span className="font-medium underline">Open Users</span>
+            <span>{t(`${resets} password reset request${resets > 1 ? "s" : ""} waiting.`)}</span>
+            <span className="font-medium underline">{t("Open Users")}</span>
           </Link>
         )}
 
         <div className={`grid gap-3 sm:gap-4 ${canSeeResets ? "grid-cols-3" : "grid-cols-2"}`}>
-          <Tile label="Pending" value={pending.length} tone={pending.length ? "text-warn" : ""} />
-          <Tile label="Codes issued" value={issuedTotal} />
-          {canSeeResets && <Tile label="Reset requests" value={resets} tone={resets ? "text-danger" : ""} />}
+          <Tile label={t("Pending")} value={pending.length} tone={pending.length ? "text-warn" : ""} />
+          <Tile label={t("Codes issued")} value={issuedTotal} />
+          {canSeeResets && <Tile label={t("Reset requests")} value={resets} tone={resets ? "text-danger" : ""} />}
         </div>
 
         <div className="grid gap-6 lg:grid-cols-5">
           <section className="flex min-w-0 flex-col gap-3 lg:col-span-3">
-            <h2 className="font-semibold">Pending requests</h2>
+            <h2 className="font-semibold">{t("Pending requests")}</h2>
             {pending.length === 0 && (
-              <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">Nothing waiting. New scans appear here.</p>
+              <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">{t("Nothing waiting. New scans appear here.")}</p>
             )}
             {pending.map((r) => (
               <div key={r.id} className="card overflow-hidden">
                 <details>
                   <summary className="flex cursor-pointer list-none flex-col gap-0.5 px-4 py-3">
-                    <span className="font-mono text-lg font-semibold tracking-wide">{numberOf(r.pending_enc)}</span>
+                    <span className="font-mono text-lg font-semibold tracking-wide">{numberOf(r.pending_enc, t("Number not stored"))}</span>
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-                      <span className="truncate">Asked by {r.email ?? "Unknown"}</span>
+                      <span className="truncate">{t("Asked by")} {r.email ?? t("Unknown")}</span>
                       <span>·</span>
                       <span>{when(r.created_at)}</span>
                     </span>
-                    {r.note && <span className="truncate text-sm font-medium text-accent">{r.note}</span>}
+                    {r.note && <span className="truncate text-sm font-medium text-accent">{t(r.note)}</span>}
                   </summary>
-                  <Note note={r.note} askedBy={r.email} />
+                  <Note note={r.note} askedBy={r.email} t={t} />
                 </details>
                 <div className="border-t border-line px-4 py-2.5">
                   <PendingActions id={r.id} />
@@ -116,23 +119,23 @@ export default async function AdminPage() {
           </section>
 
           <section className="flex min-w-0 flex-col gap-3 lg:col-span-2">
-            <h2 className="font-semibold">Last 3 issued</h2>
+            <h2 className="font-semibold">{t("Last 3 issued")}</h2>
             {issued.length === 0 && (
-              <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">Nothing issued yet.</p>
+              <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">{t("Nothing issued yet.")}</p>
             )}
             {issued.map((r) => (
               <div key={r.id} className="card overflow-hidden">
                 <details>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                     <span className="min-w-0">
-                      <span className="block truncate text-xs text-muted">Asked by {r.email ?? "Unknown"}</span>
-                      <span className="block truncate text-xs text-muted">Issued by {r.issuer ?? "Unknown"}</span>
+                      <span className="block truncate text-xs text-muted">{t("Asked by")} {r.email ?? t("Unknown")}</span>
+                      <span className="block truncate text-xs text-muted">{t("Issued by")} {r.issuer ?? t("Unknown")}</span>
                       <span className="block text-xs text-muted">{when(r.created_at)}</span>
-                      {r.note && <span className="block truncate text-sm font-medium text-accent">{r.note}</span>}
+                      {r.note && <span className="block truncate text-sm font-medium text-accent">{t(r.note)}</span>}
                     </span>
                     <span className="font-mono text-xl font-semibold tracking-widest">{r.vcode.trim()}</span>
                   </summary>
-                  <Note note={r.note} askedBy={r.email} issuedBy={r.issuer} />
+                  <Note note={r.note} askedBy={r.email} issuedBy={r.issuer} t={t} />
                 </details>
                 <div className="border-t border-line px-4 py-2.5">
                   <RemoveAction id={r.id} />

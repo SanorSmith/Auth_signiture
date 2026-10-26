@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { getLang, getT } from "@/lib/lang";
+import { LangProvider } from "./lang-provider";
 import { RegisterSW } from "./register-sw";
 import "./globals.css";
 
@@ -13,11 +15,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Auth Signature",
-  description: "Verification codes for scanned client numbers",
-  applicationName: "Auth Signature",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return {
+    title: "Auth Signature",
+    description: t("Verification codes for scanned client numbers"),
+    applicationName: "Auth Signature",
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: [
@@ -26,12 +31,15 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const lang = await getLang();
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
+    <html lang={lang} className={`${geistSans.variable} ${geistMono.variable} h-full`}>
       <body className="min-h-full">
-        {children}
-        <RegisterSW />
+        <LangProvider lang={lang}>
+          {children}
+          <RegisterSW />
+        </LangProvider>
       </body>
     </html>
   );

@@ -3,12 +3,14 @@
 import { useActionState, useEffect, useRef } from "react";
 import { lookupVerification } from "@/lib/actions";
 import { signal } from "@/lib/tones";
+import { useT } from "../lang-provider";
 import { ScanInput } from "../scan-input";
 
 // A Zebra scanner in keyboard (HID / DataWedge) mode types the digits and presses Enter,
 // so a focused input that submits on Enter is all that is needed. The scan box shows no
 // on-screen keyboard unless "Type with keyboard" is switched on.
 export function Scanner() {
+  const t = useT();
   const [state, action, pending] = useActionState(lookupVerification, null);
   const input = useRef<HTMLInputElement>(null);
 
@@ -27,7 +29,7 @@ export function Scanner() {
         <div className="flex-1">
           <ScanInput id="code" name="code" label="10-digit number" placeholder="Scan the number" inputRef={input} resetKey={state} pattern="\d{10}" />
         </div>
-        <button disabled={pending} className="btn btn-primary py-3 sm:px-6">Show code</button>
+        <button disabled={pending} className="btn btn-primary py-3 sm:px-6">{t("Show code")}</button>
       </form>
 
       <section
@@ -37,21 +39,21 @@ export function Scanner() {
           state?.vcode ? "border-success/40 bg-success-soft" : ""
         }`}
       >
-        {pending && <p className="text-muted">Looking up…</p>}
+        {pending && <p className="text-muted">{t("Looking up…")}</p>}
         {!pending && state?.vcode && (
           <>
-            <p className="text-xs font-medium uppercase tracking-wider text-success">Verification code</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-success">{t("Verification code")}</p>
             {/* Scales with the screen width so the 6 characters always fit, even on small handhelds. */}
             <p className="whitespace-nowrap font-mono text-[clamp(2rem,15vw,6rem)] font-bold tracking-widest text-success">{state.vcode}</p>
           </>
         )}
         {!pending && state?.error && (
           <>
-            <p className="text-xs font-medium uppercase tracking-wider text-warn">Not available</p>
-            <p className="text-xl font-medium">{state.error}</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-warn">{t("Not available")}</p>
+            <p className="text-xl font-medium">{t(state.error)}</p>
           </>
         )}
-        {!pending && !state && <p className="text-muted">Ready. Waiting for a scan…</p>}
+        {!pending && !state && <p className="text-muted">{t("Ready. Waiting for a scan…")}</p>}
       </section>
     </div>
   );

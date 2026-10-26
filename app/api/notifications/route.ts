@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getLang } from "@/lib/lang";
 import { notificationFeed } from "@/lib/notifications-feed";
 import { currentUser } from "@/lib/session";
 
@@ -9,6 +10,6 @@ export async function GET(req: NextRequest) {
   if (!me || me.mustChange) return NextResponse.json({ error: "Not allowed" }, { status: 401 });
 
   const params = req.nextUrl.searchParams;
-  const feed = await notificationFeed(me.uid, { list: params.get("list") !== null, after: Number(params.get("after")) });
+  const feed = await notificationFeed(me.uid, { list: params.get("list") !== null, after: Number(params.get("after")), lang: await getLang() });
   return NextResponse.json(feed, { headers: { "Cache-Control": "no-store" } });
 }

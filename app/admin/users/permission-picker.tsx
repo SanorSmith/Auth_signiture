@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PERMISSIONS, type Permission } from "@/lib/permissions";
+import { useT } from "../../lang-provider";
 
 type Props = {
   idPrefix: string;
@@ -18,13 +19,14 @@ const box = "flex cursor-pointer items-start gap-2.5 rounded-lg border border-li
 
 // Checkboxes for what a user may do. "Administrator" gives everything and disables the rest.
 export function PermissionPicker({ idPrefix, options, defaults, adminAllowed, adminDefault = false, lockAdmin = false }: Props) {
+  const t = useT();
   const [admin, setAdmin] = useState(adminDefault);
   const [chosen, setChosen] = useState<Set<string>>(new Set(defaults));
   const shown = PERMISSIONS.filter((p) => options.includes(p.key));
 
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="label">Permissions</legend>
+      <legend className="label">{t("Permissions")}</legend>
       {adminAllowed && (
         <label className={`${box} border-accent/40 bg-accent-soft`}>
           <input
@@ -38,8 +40,8 @@ export function PermissionPicker({ idPrefix, options, defaults, adminAllowed, ad
           {/* A disabled checkbox isn't submitted, so keep the administrator flag explicit. */}
           {lockAdmin && <input type="hidden" name="admin" value="on" />}
           <span>
-            <span className="block font-medium">Administrator</span>
-            <span className="block text-xs text-muted">Full access, including editing permissions</span>
+            <span className="block font-medium">{t("Administrator")}</span>
+            <span className="block text-xs text-muted">{t("Full access, including editing permissions")}</span>
           </span>
         </label>
       )}
@@ -63,8 +65,8 @@ export function PermissionPicker({ idPrefix, options, defaults, adminAllowed, ad
               className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
             />
             <span>
-              <span className="block font-medium">{p.label}</span>
-              <span className="block text-xs text-muted">{p.hint}</span>
+              <span className="block font-medium">{t(p.label)}</span>
+              <span className="block text-xs text-muted">{t(p.hint)}</span>
             </span>
           </label>
         ))}

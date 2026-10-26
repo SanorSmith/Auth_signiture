@@ -1,5 +1,7 @@
 import { authenticate } from "@/lib/auth";
-import { json, readBody } from "@/lib/mobile";
+import { sql } from "@/lib/db";
+import { getLang } from "@/lib/lang";
+import { json, readBody, reply } from "@/lib/mobile";
 import { effectivePermissions } from "@/lib/permissions";
 import { signToken } from "@/lib/session";
 
@@ -11,9 +13,11 @@ export async function POST(req: Request) {
   const ip = req.headers.get("x-real-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
 
   const result = await authenticate(email, String(body.password ?? ""), ip);
-  if ("error" in result) return json({ error: result.error }, result.error.startsWith("Too many") ? 429 : 401);
+  if ("error" in result) return reply({ error: result.error }, result.error.startsWith("Too many") ? 429 : 401);
 
   const u = result.user;
+  // Remember the app's language, so notifications sent to this account are in it.
+  await sql`UPDATE users SET lang = ${await getLang()} WHERE id = ${u.id}`;
   const token = await signToken({ uid: u.id, email, role: u.role, v: u.token_version }, "30d");
   return json({
     token,

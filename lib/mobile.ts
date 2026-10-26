@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { Permission } from "./permissions";
+import { getT } from "./lang";
 import { currentUser } from "./session";
 
 // Helpers for the Android app's API (/api/mobile/*). The app signs in once, keeps a token and sends
@@ -10,12 +11,20 @@ export type MobileUser = NonNullable<Awaited<ReturnType<typeof currentUser>>>;
 export const json = (body: unknown, status = 200) =>
   NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
 
+// Like json, for replies with a message: the text is translated into the app's language (Accept-Language).
+export async function reply(body: Record<string, unknown>, status = 200) {
+  const t = await getT();
+  const out = { ...body };
+  for (const k of ["error", "message"]) if (typeof out[k] === "string") out[k] = t(out[k] as string);
+  return json(out, status);
+}
+
 // The signed-in user, or the response to send back instead (401 not signed in, 403 not allowed).
 export async function guard(...needed: Permission[]): Promise<MobileUser | NextResponse> {
   const me = await currentUser();
-  if (!me) return json({ error: "Not signed in" }, 401);
-  if (me.mustChange) return json({ error: "Choose a new password first", code: "password_change_required" }, 403);
-  if (needed.length > 0 && !needed.some((p) => me.perms.includes(p))) return json({ error: "Not allowed" }, 403);
+  if (!me) return reply({ error: "Not signed in" }, 401);
+  if (me.mustChange) return reply({ error: "Choose a new password first", code: "password_change_required" }, 403);
+  if (needed.length > 0 && !needed.some((p) => me.perms.includes(p))) return reply({ error: "Not allowed" }, 403);
   return me;
 }
 
@@ -48,7 +57,7 @@ export function toForm(fields: Record<string, unknown>): FormData {
 }
 
 // Turns an action's result into the API reply.
-export function fromState(state: { error?: string; ok?: string; code?: string; vcode?: string } | null) {
-  if (state?.error) return json({ error: state.error }, 400);
-  return json({ ok: true, message: state?.ok ?? null, code: state?.code ?? null, vcode: state?.vcode ?? null });
+export async function fromState(state: { error?: string; ok?: string; code?: string; vcode?: string } | null) {
+  if (state?.error) return reply({ error: state.error }, 400);
+  return reply({ ok: true, message: state?.ok ?? null, code: state?.code ?? null, vcode: state?.vcode ?? null });
 }

@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { sql } from "./db";
+import { isLang, makeT, type Lang } from "./i18n";
 import { sendPushToUsers } from "./push";
 
 // Runs after the response is sent, so the person never waits for it, and a failed notification
@@ -42,7 +43,17 @@ export async function notifyUsers(userIds: number[], notice: Notice) {
       FROM notifications WHERE user_id = ANY(${ids}::int[])
     ) old
     WHERE n.id = old.id AND old.rn > ${KEEP_PER_USER}`;
-  await sendPushToUsers(ids, notice);
+  // Each person's devices get the text in that person's language.
+  const langs = await sql`SELECT id, lang FROM users WHERE id = ANY(${ids}::int[])`;
+  const groups = new Map<Lang, number[]>();
+  for (const u of langs) {
+    const lang: Lang = isLang(u.lang) ? u.lang : "en";
+    groups.set(lang, [...(groups.get(lang) ?? []), u.id as number]);
+  }
+  for (const [lang, members] of groups) {
+    const t = makeT(lang);
+    await sendPushToUsers(members, { ...notice, title: t(notice.title), body: t(notice.body) });
+  }
 }
 
 // Notifies everyone who holds a permission (administrators hold all), except `exceptUserId`.
