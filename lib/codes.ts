@@ -52,11 +52,19 @@ export function vcodeFromCounter(counter: number) {
 }
 
 // A request must say who delivers, how many colli (packages) and what type they are. They are kept
-// together in the request's note, which is what the admin sees.
+// together in the request's note, which is what the admin sees. Only these four types exist; they are
+// stored in English and shown in the person's language (Kartong, Pall, Bunt, Pak in Swedish).
 export const SUPPLIER_MAX = 36;
 export const COLLI_MAX = 9999;
-export const COLLI_TYPE_MAX = 16;
-export const COLLI_TYPES = ["Pallet", "Box", "Carton", "Bag", "Crate", "Roll", "Drum"];
+export const COLLI_TYPES = ["Carton", "Pallet", "Bundle", "Pack"] as const;
+export type ColliType = (typeof COLLI_TYPES)[number];
+
+const TYPE_ALIASES: Record<string, ColliType> = {
+  carton: "Carton", kartong: "Carton",
+  pallet: "Pallet", pall: "Pallet",
+  bundle: "Bundle", bunt: "Bundle",
+  pack: "Pack", pak: "Pack",
+};
 
 const tidy = (v: unknown) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
 
@@ -68,8 +76,7 @@ export function deliveryNote(supplierRaw: unknown, colliRaw: unknown, typeRaw: u
   if (!/^\d{1,4}$/.test(colliText) || Number(colliText) < 1 || Number(colliText) > COLLI_MAX) {
     return { error: `Enter the number of colli, from 1 to ${COLLI_MAX}` };
   }
-  const type = tidy(typeRaw);
-  if (type.length < 2) return { error: "Enter the colli type, for example Pallet or Box" };
-  if (type.length > COLLI_TYPE_MAX) return { error: `The colli type can be at most ${COLLI_TYPE_MAX} characters` };
+  const type = TYPE_ALIASES[tidy(typeRaw).toLowerCase()];
+  if (!type) return { error: "Choose the colli type: Carton, Pallet, Bundle or Pack" };
   return { note: `${supplier} · ${Number(colliText)} colli · ${type}` };
 }

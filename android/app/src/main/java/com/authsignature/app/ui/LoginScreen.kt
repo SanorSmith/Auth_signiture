@@ -123,7 +123,17 @@ fun LoginScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             BrandHeader()
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(12.dp))
+            androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("sv" to "Svenska", "en" to "English").forEach { (code, name) ->
+                    if (com.authsignature.app.i18n.I18n.lang == code) {
+                        Button(onClick = { container.setLanguage(code) }, shape = RoundedCornerShape(10.dp)) { Text(name) }
+                    } else {
+                        OutlinedButton(onClick = { container.setLanguage(code) }, shape = RoundedCornerShape(10.dp)) { Text(name) }
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
             AppCard {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Sign in", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)

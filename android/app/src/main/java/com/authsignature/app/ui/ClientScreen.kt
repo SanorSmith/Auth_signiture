@@ -49,8 +49,7 @@ import com.authsignature.app.sound.Tone
 import kotlinx.coroutines.launch
 
 private const val SUPPLIER_MAX = 36
-private const val COLLI_TYPE_MAX = 16
-private val COLLI_TYPES = listOf("Pallet", "Box", "Carton", "Bag", "Crate", "Roll", "Drum")
+private val COLLI_TYPES = listOf("Carton", "Pallet", "Bundle", "Pack")
 
 /** Scan a number, see the code the admin issues for it, and the last three issued codes. */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
@@ -71,8 +70,8 @@ fun ClientScreen() {
 
     fun send(code: String) {
         if (busy) return
-        if (supplier.trim().length < 2 || colli.toIntOrNull()?.let { it in 1..9999 } != true || colliType.trim().length < 2) {
-            errorMessage = "Enter the supplier name, the number of colli and the colli type first"
+        if (supplier.trim().length < 2 || colli.toIntOrNull()?.let { it in 1..9999 } != true || colliType !in COLLI_TYPES) {
+            errorMessage = "Enter the supplier name, the number of colli and choose the colli type first"
             okMessage = null
             container.signal(Tone.Error)
             return
@@ -145,22 +144,14 @@ fun ClientScreen() {
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
-                    value = colliType,
-                    onValueChange = { colliType = it.take(COLLI_TYPE_MAX) },
-                    label = { Text("Colli type") },
-                    placeholder = { Text("Pallet, box, carton…") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Text("Colli type", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 androidx.compose.foundation.layout.FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     COLLI_TYPES.forEach { type ->
                         androidx.compose.material3.FilterChip(
-                            selected = colliType.equals(type, ignoreCase = true),
+                            selected = colliType == type,
                             onClick = { colliType = type },
                             label = { Text(type) },
                         )

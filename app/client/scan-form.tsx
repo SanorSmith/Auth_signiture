@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { requestVerification } from "@/lib/actions";
-import { COLLI_TYPES, COLLI_TYPE_MAX, SUPPLIER_MAX } from "@/lib/codes";
+import { COLLI_TYPES, SUPPLIER_MAX } from "@/lib/codes";
 import { signal } from "@/lib/tones";
 import { useT } from "../lang-provider";
 import { ScanInput } from "../scan-input";
@@ -16,7 +16,6 @@ export function ScanForm() {
   const [supplier, setSupplier] = useState("");
   const [colli, setColli] = useState("");
   const [colliType, setColliType] = useState("");
-  const typeBox = useRef<HTMLInputElement>(null);
   const colliBox = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -64,7 +63,7 @@ export function ScanForm() {
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              typeBox.current?.focus();
+              code.current?.focus();
             }
           }}
           inputMode="numeric"
@@ -74,29 +73,30 @@ export function ScanForm() {
           className="input"
         />
       </div>
-      <div>
-        <label htmlFor="colliType" className="label">{t("Colli type")}</label>
-        <input
-          id="colliType"
-          name="colliType"
-          ref={typeBox}
-          list="colli-types"
-          value={colliType}
-          onChange={(e) => setColliType(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              code.current?.focus();
-            }
-          }}
-          maxLength={COLLI_TYPE_MAX}
-          required
-          autoComplete="off"
-          placeholder={t("Pallet, box, carton…")}
-          className="input"
-        />
-        <datalist id="colli-types">{COLLI_TYPES.map((ct) => <option key={ct} value={t(ct)} />)}</datalist>
-      </div>
+      <fieldset>
+        <legend className="label">{t("Colli type")}</legend>
+        <div className="grid grid-cols-4 gap-2">
+          {COLLI_TYPES.map((ct) => (
+            <label
+              key={ct}
+              className={`flex cursor-pointer items-center justify-center rounded-lg border px-2 py-2.5 text-sm font-medium transition ${
+                colliType === ct ? "border-accent bg-accent-soft text-accent" : "border-line hover:bg-page"
+              }`}
+            >
+              <input
+                type="radio"
+                name="colliType"
+                value={ct}
+                checked={colliType === ct}
+                onChange={() => setColliType(ct)}
+                required
+                className="sr-only"
+              />
+              {t(ct)}
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <ScanInput id="code" name="code" label="10-digit number" placeholder="Scan the number" inputRef={code} resetKey={state} />
       {/* With two text inputs, Enter (the scanner's suffix) only submits when a submit button exists. */}
       <button disabled={pending} className="btn btn-primary">{pending ? t("Sending…") : t("Send request")}</button>

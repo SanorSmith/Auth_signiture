@@ -52,7 +52,7 @@ object I18n {
         "No note." to "Inga leveransuppgifter.",
         "The client" to "Kunden",
         // Scan
-        "Enter the supplier name, the number of colli and the colli type first" to "Ange först leverantörens namn, antal kolli och kollityp",
+        "Enter the supplier name, the number of colli and choose the colli type first" to "Ange först leverantörens namn och antal kolli, och välj kollityp",
         "YOUR VERIFICATION CODE" to "DIN VERIFIERINGSKOD",
         // Sign in
         "The admin has been notified." to "Administratören har meddelats.",
@@ -103,6 +103,7 @@ object I18n {
         Regex("""(\d+) min ago""") to { m -> "för ${m[1]} min sedan" },
         Regex("""(\d+) h ago""") to { m -> "för ${m[1]} h sedan" },
         Regex("""(\d+) d ago""") to { m -> "för ${m[1]} d sedan" },
+        Regex("""(.+) · (\d+) colli""") to { m -> "${m[1]} · ${m[2]} kolli" },
         Regex("""(.+) · (\d+) colli · (.+)""") to { m -> "${m[1]} · ${m[2]} kolli · ${t(m[3])}" },
         Regex("""(.+) · ([\d.,]+) s""") to { m -> "${t(m[1])} · ${m[2]} s" },
     )

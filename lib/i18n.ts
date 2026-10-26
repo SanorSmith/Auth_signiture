@@ -63,10 +63,11 @@ const SV: Record<string, string> = {
   "Number of colli": "Antal kolli",
   "How many packages?": "Hur många kollin?",
   "Colli type": "Kollityp",
-  "Pallet, box, carton…": "Pall, låda, kartong…",
-  Pallet: "Pall",
-  Box: "Låda",
   Carton: "Kartong",
+  Pallet: "Pall",
+  Bundle: "Bunt",
+  Pack: "Pak",
+  Box: "Låda",
   Bag: "Säck",
   Crate: "Back",
   Roll: "Rulle",
@@ -231,7 +232,7 @@ const SV: Record<string, string> = {
   Removed: "Borttagen",
   "No verification code issued for this number yet": "Ingen verifieringskod har utfärdats för det här numret ännu",
   "Enter the supplier name": "Ange leverantörens namn",
-  "Enter the colli type, for example Pallet or Box": "Ange kollitypen, till exempel Pall eller Låda",
+  "Choose the colli type: Carton, Pallet, Bundle or Pack": "Välj kollityp: Kartong, Pall, Bunt eller Pak",
   "Wrong email or password": "Fel e-postadress eller lösenord",
   "Current password is wrong": "Nuvarande lösenord är fel",
   "New password must be at least 8 characters": "Det nya lösenordet måste vara minst 8 tecken",
@@ -289,6 +290,7 @@ const PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^(\d+) h ago$/, (m) => `för ${m[1]} h sedan`],
   [/^(\d+) d ago$/, (m) => `för ${m[1]} d sedan`],
   // "Acme · 12 colli · Pallet": the delivery details keep what was typed, only the type word is translated.
+  [/^(.+) · (\d+) colli$/, (m) => `${m[1]} · ${m[2]} kolli`],
   [/^(.+) · (\d+) colli · (.+)$/, (m) => `${m[1]} · ${m[2]} kolli · ${SV[m[3]] ?? m[3]}`],
 ];
 

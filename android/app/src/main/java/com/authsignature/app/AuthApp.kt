@@ -35,7 +35,7 @@ class AppContainer(val app: Application, apiBase: String = BuildConfig.API_BASE)
     val store = SessionStore(app)
 
     init {
-        com.authsignature.app.i18n.I18n.set(store.language ?: com.authsignature.app.i18n.I18n.systemLang())
+        com.authsignature.app.i18n.I18n.set(store.language ?: "sv")
     }
 
     fun setLanguage(lang: String) {
