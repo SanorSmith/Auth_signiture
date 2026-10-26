@@ -61,9 +61,11 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
     SELECT c.client_id, c.denied_at, v.vcode FROM codes c
     LEFT JOIN verifications v ON v.code_hash = c.code_hash WHERE c.code_hash = ${h}`;
   if (found.length) {
-    // A denied request, or a waiting one whose owner's account was deleted, can be asked for again by anyone
-    // who may request codes. Otherwise a number stays with the person who asked first.
-    const reopenable = !found[0].vcode && (found[0].denied_at || found[0].client_id === null);
+    // Anyone who may request codes can ask again for a number that has no code yet (waiting, denied, or
+    // left by a deleted account): it goes to the admin, who decides whether to issue or deny it again.
+    // A number whose code is already issued stays with the person who asked, because that code is live.
+    // Re-scanning your own waiting request just shows its status, without alerting the admin again.
+    const reopenable = !found[0].vcode && (found[0].denied_at || found[0].client_id !== s.uid);
     if (found[0].client_id !== s.uid && !reopenable) return { error: "This number has already been requested" };
     if (reopenable) {
       // Scanning a denied number again reopens the request for the admin (and hands it to whoever scanned).
