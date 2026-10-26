@@ -50,8 +50,11 @@ import com.authsignature.app.sound.Tone
 import kotlinx.coroutines.launch
 
 private const val SUPPLIER_MAX = 36
+private const val COLLI_TYPE_MAX = 16
+private val COLLI_TYPES = listOf("Pallet", "Box", "Carton", "Bag", "Crate", "Roll", "Drum")
 
 /** Scan a number, see the code the admin issues for it, and the last three issued codes. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun ClientScreen() {
     val container = LocalContext.current.container
@@ -62,14 +65,15 @@ fun ClientScreen() {
     var number by remember { mutableStateOf("") }
     var supplier by remember { mutableStateOf("") }
     var colli by remember { mutableStateOf("") }
+    var colliType by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var okMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     fun send(code: String) {
         if (busy) return
-        if (supplier.trim().length < 2 || colli.toIntOrNull()?.let { it in 1..9999 } != true) {
-            errorMessage = "Enter the supplier name and the number of colli first"
+        if (supplier.trim().length < 2 || colli.toIntOrNull()?.let { it in 1..9999 } != true || colliType.trim().length < 2) {
+            errorMessage = "Enter the supplier name, the number of colli and the colli type first"
             okMessage = null
             container.signal(Tone.Error)
             return
@@ -85,11 +89,12 @@ fun ClientScreen() {
         errorMessage = null
         scope.launch {
             try {
-                okMessage = container.api.request(code, supplier.trim(), colli).message ?: "Request sent, waiting for the admin"
+                okMessage = container.api.request(code, supplier.trim(), colli, colliType.trim()).message ?: "Request sent, waiting for the admin"
                 container.signal(Tone.Sent)
                 number = ""
                 supplier = ""
                 colli = ""
+                colliType = ""
                 remote.refresh()
             } catch (e: ApiException) {
                 if (e.unauthorized) container.signOut() else errorMessage = e.message
@@ -141,6 +146,27 @@ fun ClientScreen() {
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                OutlinedTextField(
+                    value = colliType,
+                    onValueChange = { colliType = it.take(COLLI_TYPE_MAX) },
+                    label = { Text("Colli type") },
+                    placeholder = { Text("Pallet, box, carton…") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    COLLI_TYPES.forEach { type ->
+                        androidx.compose.material3.FilterChip(
+                            selected = colliType.equals(type, ignoreCase = true),
+                            onClick = { colliType = type },
+                            label = { Text(type) },
+                        )
+                    }
+                }
                 ScanNumberField(number, { number = it }, { send(number) }, focus)
                 okMessage?.let { SuccessNote(it) }
                 errorMessage?.let { ErrorNote(it) }

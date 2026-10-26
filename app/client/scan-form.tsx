@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { requestVerification } from "@/lib/actions";
-import { SUPPLIER_MAX } from "@/lib/codes";
+import { COLLI_TYPES, COLLI_TYPE_MAX, SUPPLIER_MAX } from "@/lib/codes";
 import { signal } from "@/lib/tones";
 import { ScanInput } from "../scan-input";
 
@@ -13,12 +13,15 @@ export function ScanForm() {
   const code = useRef<HTMLInputElement>(null);
   const [supplier, setSupplier] = useState("");
   const [colli, setColli] = useState("");
+  const [colliType, setColliType] = useState("");
+  const typeBox = useRef<HTMLInputElement>(null);
   const colliBox = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (state?.ok) {
       setSupplier("");
       setColli("");
+      setColliType("");
     }
     // A short sound confirms what just happened to your scan.
     if (state?.ok) void signal("sent");
@@ -59,7 +62,7 @@ export function ScanForm() {
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              code.current?.focus();
+              typeBox.current?.focus();
             }
           }}
           inputMode="numeric"
@@ -68,6 +71,29 @@ export function ScanForm() {
           placeholder="How many packages?"
           className="input"
         />
+      </div>
+      <div>
+        <label htmlFor="colliType" className="label">Colli type</label>
+        <input
+          id="colliType"
+          name="colliType"
+          ref={typeBox}
+          list="colli-types"
+          value={colliType}
+          onChange={(e) => setColliType(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              code.current?.focus();
+            }
+          }}
+          maxLength={COLLI_TYPE_MAX}
+          required
+          autoComplete="off"
+          placeholder="Pallet, box, carton…"
+          className="input"
+        />
+        <datalist id="colli-types">{COLLI_TYPES.map((t) => <option key={t} value={t} />)}</datalist>
       </div>
       <ScanInput id="code" name="code" label="10-digit number" placeholder="Scan the number" inputRef={code} resetKey={state} />
       {/* With two text inputs, Enter (the scanner's suffix) only submits when a submit button exists. */}
