@@ -125,10 +125,12 @@ export async function issueRequest(form: FormData) {
   const [{ n }] = await sql`SELECT nextval('vcode_counter')::float8 AS n`;
   const vcode = vcodeFromCounter(Number(n));
   await makeRoom(vcode);
-  await sql`
+  const made = await sql`
     INSERT INTO verifications (code_hash, vcode, issued_by, issued_by_email)
     VALUES (${rows[0].code_hash}, ${vcode}, ${s.uid}, ${s.email})
-    ON CONFLICT (code_hash) DO NOTHING`;
+    ON CONFLICT (code_hash) DO NOTHING RETURNING id`;
+  // Two admins pressing Generate at once: the database allows one code per number, so the second does nothing.
+  if (!made.length) return;
   await sql`UPDATE codes SET pending_enc = NULL WHERE id = ${id}`;
   revalidatePath("/admin");
   revalidatePath("/client");
