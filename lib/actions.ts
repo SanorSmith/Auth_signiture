@@ -61,12 +61,15 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
     SELECT c.client_id, c.denied_at, v.vcode FROM codes c
     LEFT JOIN verifications v ON v.code_hash = c.code_hash WHERE c.code_hash = ${h}`;
   if (found.length) {
-    if (found[0].client_id !== s.uid) return { error: "This number has already been requested" };
-    if (found[0].denied_at) {
-      // Scanning a denied number again reopens the request for the admin.
+    // A denied request, or a waiting one whose owner's account was deleted, can be asked for again by anyone
+    // who may request codes. Otherwise a number stays with the person who asked first.
+    const reopenable = !found[0].vcode && (found[0].denied_at || found[0].client_id === null);
+    if (found[0].client_id !== s.uid && !reopenable) return { error: "This number has already been requested" };
+    if (reopenable) {
+      // Scanning a denied number again reopens the request for the admin (and hands it to whoever scanned).
       await sql`
         UPDATE codes SET denied_at = NULL, pending_enc = ${encryptPending(code)}, last_scanned_at = now(),
-                         note = COALESCE(${note}, note)
+                         note = COALESCE(${note}, note), client_id = ${s.uid}, requested_by_email = ${s.email}
         WHERE code_hash = ${h}`;
       revalidatePath("/client");
       revalidatePath("/admin");
