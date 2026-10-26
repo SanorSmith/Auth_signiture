@@ -93,7 +93,13 @@ check("a client cannot use the monitor (403)", clientLookup.status === 403, clie
 
 // --- admin handles the requests ------------------------------------------------
 await wait(1500); // notifications are sent after the response
-const reqB = await call("POST", "/api/mobile/request", client, { code: NUMBER_B });
+const noType = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Acme", colli: 2 });
+check("a request without the colli type is refused", noType.status === 400 && /type/i.test(noType.body?.error ?? ""), noType);
+const noSupplier = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, colli: 2, colliType: "Box" });
+check("a request without the supplier is refused", noSupplier.status === 400, noSupplier);
+const badColli = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Acme", colli: 0, colliType: "Box" });
+check("zero colli is refused", badColli.status === 400, badColli);
+const reqB = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Beta Parts", colli: 3, colliType: "Box" });
 check("client requests a second code", reqB.status === 200, reqB);
 
 const adminView = await call("GET", "/api/mobile/admin", admin);
