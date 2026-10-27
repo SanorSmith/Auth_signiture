@@ -11,6 +11,7 @@ import {
   counterUndo,
   noteCompareEnabled,
   parseRange,
+  setNoteCompareEnabled,
   previousRange,
   scannedCodes,
 } from "@/lib/counter";
@@ -49,7 +50,7 @@ export async function POST(req: Request, { params }: Ctx) {
   const me = await guard("colli_counter");
   if (isResponse(me)) return me;
   const { action } = await params;
-  const body = await readBody<{ code?: string; choice?: string; delta?: number; expected?: number | null; image?: string; mediaType?: string; ids?: unknown }>(req);
+  const body = await readBody<{ code?: string; choice?: string; delta?: number; expected?: number | null; image?: string; mediaType?: string; ids?: unknown; on?: boolean }>(req);
   switch (action) {
     case "scan":
       return json(await counterScan(me.uid, body.code));
@@ -62,6 +63,11 @@ export async function POST(req: Request, { params }: Ctx) {
       return json(await counterAdjust(me.uid, Number(body.delta) || 0));
     case "expected":
       return json(await counterSetExpected(me.uid, body.expected === null || body.expected === undefined ? null : Number(body.expected)));
+    case "note-setting": {
+      if (!me.isAdmin) return reply({ error: "Not allowed" }, 403);
+      await setNoteCompareEnabled(body.on === true);
+      return json({ noteCompare: await noteCompareEnabled() });
+    }
     case "note-read": {
       if (!(await noteCompareEnabled())) return reply({ error: "Comparing with a delivery note is turned off" }, 403);
       if (!noteReadingConfigured()) return reply({ error: "Reading delivery notes is not set up yet. An administrator must add the AI key." }, 503);
@@ -73,7 +79,10 @@ export async function POST(req: Request, { params }: Ctx) {
       const wait = await blockedFor(key, NOTE_READS_PER_WINDOW);
       if (wait) return reply({ error: `Too many delivery notes read. Try again in ${Math.ceil(wait / 60)} min.` }, 429);
       await recordFailure(key); // counts the attempt, whatever happens next
-      const reading = await readDeliveryNote(body.image, mediaType);
+      // Tell the reader what the scanned packages look like: two samples and their usual length.
+      const scanned = await scannedCodes(me.uid);
+      const hint = scanned.length ? { samples: [...new Set([scanned[0], scanned[scanned.length - 1]])], length: scanned[0].length } : null;
+      const reading = await readDeliveryNote(body.image, mediaType, hint);
       return "error" in reading ? reply({ error: reading.error }, 502) : json(reading);
     }
     case "note-compare": {

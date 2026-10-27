@@ -26,6 +26,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -128,6 +129,39 @@ fun AccountScreen(user: User) {
                 Text(user.email, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (user.isAdmin) Chip("Administrator") else user.perms.forEach { Chip(Permissions.label(it)) }
+                }
+            }
+        }
+
+        if (user.isAdmin) {
+            var noteOn by remember { mutableStateOf<Boolean?>(null) }
+            var noteError by remember { mutableStateOf<String?>(null) }
+            LaunchedEffect(Unit) {
+                try {
+                    noteOn = container.api.counterState().noteCompare
+                } catch (_: Exception) {
+                }
+            }
+            AppCard {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Colli counter", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    SwitchRow(
+                        "Compare with delivery note",
+                        "Users photograph the delivery note, an AI model reads the package IDs, and they are compared with the scanned packages. The photo is not stored, and the IDs are removed when the count ends.",
+                        noteOn == true,
+                    ) { wanted ->
+                        scope.launch {
+                            try {
+                                noteError = null
+                                noteOn = container.api.counterNoteSetting(wanted).noteCompare
+                                container.signal(Tone.Done)
+                            } catch (e: ApiException) {
+                                noteError = e.message
+                                container.signal(Tone.Error)
+                            }
+                        }
+                    }
+                    noteError?.let { ErrorNote(it) }
                 }
             }
         }

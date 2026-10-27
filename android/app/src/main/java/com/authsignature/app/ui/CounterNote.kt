@@ -51,12 +51,12 @@ import java.io.File
 
 private enum class Stage { Idle, Reading, Review, Comparing, Result }
 
-/** Reads the photo, turns it upright, shrinks it to 1600 pixels and returns it as base64 text. */
+/** Reads the photo, turns it upright, shrinks it to 2400 pixels and returns it as base64 text. */
 private fun shrinkPhoto(file: File): String {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeFile(file.path, bounds)
     var sample = 1
-    while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= 1600) sample *= 2
+    while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= 2400) sample *= 2
     val decoded = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
         ?: throw IllegalStateException("no image")
     val rotation = when (ExifInterface(file.path).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
@@ -65,14 +65,14 @@ private fun shrinkPhoto(file: File): String {
         ExifInterface.ORIENTATION_ROTATE_270 -> 270f
         else -> 0f
     }
-    val scale = minOf(1f, 1600f / maxOf(decoded.width, decoded.height))
+    val scale = minOf(1f, 2400f / maxOf(decoded.width, decoded.height))
     val matrix = Matrix().apply {
         postRotate(rotation)
         postScale(scale, scale)
     }
     val bitmap = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
     val out = ByteArrayOutputStream()
-    bitmap.compress(Bitmap.CompressFormat.JPEG, 82, out)
+    bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
     return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
 }
 
@@ -123,7 +123,7 @@ fun NoteCompareSection(enabled: Boolean) {
                 runCatching { photoFile.delete() }
                 val read = container.api.counterNoteRead(image)
                 if (!read.legible || read.ids.isEmpty()) {
-                    error = "No package IDs could be read from this photo. Take a clearer, straight-on photo of the note."
+                    error = "No package IDs could be read from this photo. Take a clearer, straight-on photo of the note." + (read.comment?.let { "\n" + it } ?: "")
                     stage = Stage.Idle
                     container.signal(Tone.Error)
                 } else {

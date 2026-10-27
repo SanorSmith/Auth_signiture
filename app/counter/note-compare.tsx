@@ -6,20 +6,20 @@ import type { Comparison } from "@/lib/counter-note";
 import { useT } from "../lang-provider";
 
 type Stage = "idle" | "reading" | "review" | "comparing" | "result";
-type Reading = { legible: boolean; ids: string[]; total: number | null; supplier: string | null };
+type Reading = { legible: boolean; ids: string[]; total: number | null; supplier: string | null; comment: string | null };
 
 const ENDPOINT = "/api/mobile/counter";
 
-// A photo is shrunk before it is sent: a delivery note stays readable at 1600 pixels, and the upload is small.
+// A photo is shrunk before it is sent, but kept large enough that small print and handwriting stay readable.
 async function shrink(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(bitmap.height * scale);
   canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
-  const blob: Blob = await new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("no image"))), "image/jpeg", 0.82));
+  const blob: Blob = await new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("no image"))), "image/jpeg", 0.85));
   const bytes = new Uint8Array(await blob.arrayBuffer());
   let binary = "";
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -45,6 +45,7 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
   const [text, setText] = useState("");
   const [result, setResult] = useState<Comparison | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [why, setWhy] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
 
   // Leaving the screen (or finishing the count) removes everything that was read.
@@ -68,6 +69,7 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
   const onPhoto = async (f: File | undefined) => {
     if (!f) return;
     setError(null);
+    setWhy(null);
     setStage("reading");
     try {
       const image = await shrink(f);
@@ -80,6 +82,7 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
       }
       if (!res.data.legible || res.data.ids.length === 0) {
         setError("No package IDs could be read from this photo. Take a clearer, straight-on photo of the note.");
+        setWhy(res.data.comment);
         setStage("idle");
         void signal("error");
         return;
@@ -129,7 +132,7 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
         <button type="button" disabled={disabled} onClick={() => file.current?.click()} className="btn btn-secondary">
           {t("Compare with delivery note")}
         </button>
-        {error && <p role="alert" className="alert alert-error text-sm">{t(error)}</p>}
+        {error && <p role="alert" className="alert alert-error text-sm">{t(error)}{why && <><br /><span className="opacity-80">{t("The reader saw")}: {why}</span></>}</p>}
       </section>
     );
   }

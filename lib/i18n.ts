@@ -337,6 +337,8 @@ const SV: Record<string, string> = {
   "Count the colli of a shipment by scanning, and see the statistics": "Räkna kolli i en leverans genom att skanna, och se statistiken",
 
   Rules: "Regler",
+  Settings: "Inställningar",
+  "The reader saw": "Läsaren såg",
   "Remembered rules": "Sparade regler",
   "Forget all": "Glöm alla",
   Forget: "Glöm",

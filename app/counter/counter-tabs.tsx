@@ -10,7 +10,7 @@ export async function CounterTabs({ current, isAdmin = false }: { current: "coun
     <div className="mb-4 flex gap-1">
       <Link href="/counter" className={tab(current === "count")}>{t("Count")}</Link>
       <Link href="/counter/dashboard" className={tab(current === "stats")}>{t("Statistics")}</Link>
-      {isAdmin && <Link href="/counter/rules" className={tab(current === "rules")}>{t("Rules")}</Link>}
+      {isAdmin && <Link href="/counter/rules" className={tab(current === "rules")}>{t("Settings")}</Link>}
     </div>
   );
 }

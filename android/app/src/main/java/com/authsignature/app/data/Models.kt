@@ -122,7 +122,7 @@ data class FinishedCount(val colli: Int = 0, val expected: Int? = null)
 data class ResolveReply(val finished: FinishedCount? = null, val state: CounterState = CounterState())
 
 @Serializable
-data class NoteReading(val legible: Boolean = true, val ids: List<String> = emptyList(), val total: Int? = null, val supplier: String? = null)
+data class NoteReading(val legible: Boolean = true, val ids: List<String> = emptyList(), val total: Int? = null, val supplier: String? = null, val comment: String? = null)
 
 @Serializable
 data class PossibleMisread(val note: String, val scanned: String)
