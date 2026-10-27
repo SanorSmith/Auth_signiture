@@ -127,7 +127,16 @@ export async function readDeliveryNote(imageBase64: string, mediaType: string): 
       }),
       signal: AbortSignal.timeout(50_000),
     });
-    if (!res.ok) return { error: "Could not read the delivery note. Try again." };
+    if (!res.ok) {
+      // Say what went wrong in words an administrator can act on; never log the photo or the key.
+      const detail = (await res.json().catch(() => null)) as { error?: { type?: string; message?: string } } | null;
+      console.error(`note-read: the AI service answered ${res.status} ${detail?.error?.type ?? ""}`);
+      if (res.status === 401 || res.status === 403) return { error: "The AI key was refused. An administrator must check the key." };
+      if (res.status === 404) return { error: "The AI model is not available for this key. An administrator must check the model." };
+      if (res.status === 429 || res.status === 529) return { error: "The AI service is busy. Try again in a moment." };
+      if (res.status === 400 && /credit|billing/i.test(detail?.error?.message ?? "")) return { error: "The AI account has no credit left. An administrator must add some." };
+      return { error: "Could not read the delivery note. Try again." };
+    }
     const data = (await res.json()) as { content?: { type: string; input?: Record<string, unknown> }[] };
     const input = data.content?.find((c) => c.type === "tool_use")?.input;
     if (!input) return { error: "Could not read the delivery note. Try again." };
