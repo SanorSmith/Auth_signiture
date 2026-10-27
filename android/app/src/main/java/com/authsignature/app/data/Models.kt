@@ -93,12 +93,58 @@ data class Notice(
 @Serializable
 data class Feed(val items: List<Notice> = emptyList(), val unread: Int = 0, val latestId: Long = 0)
 
+// --- Colli counter ---------------------------------------------------------------------------------
+@Serializable
+data class CounterRule(val len: Int, val prefix: Int)
+
+@Serializable
+data class RecentScan(val code: String, val forced: Boolean = false, val at: Long = 0)
+
+@Serializable
+data class CounterState(
+    val active: Boolean = false,
+    val count: Int = 0,
+    val reference: String? = null,
+    val rule: CounterRule? = null,
+    val expected: Int? = null,
+    val recent: List<RecentScan> = emptyList(),
+)
+
+@Serializable
+data class ScanReply(val outcome: String, val code: String? = null, val state: CounterState = CounterState())
+
+@Serializable
+data class FinishedCount(val colli: Int = 0, val expected: Int? = null)
+
+@Serializable
+data class ResolveReply(val finished: FinishedCount? = null, val state: CounterState = CounterState())
+
+@Serializable
+data class StatBucket(val start: String, val shipments: Int = 0, val colli: Int = 0)
+
+@Serializable
+data class StatsBlock(
+    val unit: String = "day",
+    val from: String = "",
+    val to: String = "",
+    val buckets: List<StatBucket> = emptyList(),
+    val shipments: Int = 0,
+    val colli: Int = 0,
+    val average: Double = 0.0,
+    val mismatched: Int = 0,
+    val withExpected: Int = 0,
+)
+
+@Serializable
+data class StatsReply(val current: StatsBlock, val compare: StatsBlock? = null)
+
 /** What each permission is called on screen. The keys match the server's. */
 object Permissions {
     val all = listOf(
         "request" to ("Request codes" to "Scan numbers and see their codes"),
         "monitor" to ("Monitor" to "Look up a code by scanning its number"),
         "manage_requests" to ("Manage requests" to "Generate, deny and remove requests"),
+        "colli_counter" to ("Colli counter" to "Count the colli of a shipment by scanning, and see the statistics"),
         "create_users" to ("Create accounts" to "Add new users"),
         "reset_passwords" to ("Reset passwords" to "Not for administrators or other user managers"),
         "remove_users" to ("Remove accounts" to "Not for administrators or other user managers"),

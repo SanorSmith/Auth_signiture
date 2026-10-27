@@ -14,8 +14,8 @@ android {
         applicationId = "com.authsignature.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "2.3.2"
+        versionCode = 11
+        versionName = "2.4.0"
         buildConfigField("String", "API_BASE", "\"https://auth-signiture.vercel.app\"")
     }
 

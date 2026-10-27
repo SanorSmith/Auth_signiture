@@ -77,6 +77,8 @@ object I18n {
         "Password reset requests and changes to your access" to "Begäran om nytt lösenord och ändringar av din behörighet",
         "Shown while the app checks for notifications in the background" to "Visas medan appen söker efter notiser i bakgrunden",
         "Watching for new requests and codes" to "Bevakar nya begäranden och koder",
+        "Compare with the previous period" to "Jämför med föregående period",
+        "Loading…" to "Läser in…",
     )
 
     private val PATTERNS: List<Pair<Regex, (List<String>) -> String>> = listOf(
@@ -100,6 +102,16 @@ object I18n {
         Regex("""Server said: (.+)""") to { m -> "Servern svarade: ${m[1]}" },
         Regex("""Cannot reach the server \((.+)\)""") to { m -> "Kan inte nå servern (${m[1]})" },
         Regex("""Something went wrong \((\d+)\)""") to { m -> "Något gick fel (${m[1]})" },
+        Regex("""Matches the expected (\d+)""") to { m -> "Stämmer med förväntade ${m[1]}" },
+        Regex("""Expected (\d+): (\d+) fewer""") to { m -> "Förväntat ${m[1]}: ${m[2]} färre" },
+        Regex("""Expected (\d+): (\d+) more""") to { m -> "Förväntat ${m[1]}: ${m[2]} fler" },
+        Regex("""of (\d+) expected""") to { m -> "av ${m[1]} förväntade" },
+        Regex("""Previous shipment saved: (\d+) colli""") to { m -> "Föregående leverans sparad: ${m[1]} kolli" },
+        Regex("""Matching: first (\d+) of (\d+) characters""") to { m -> "Matchar: första ${m[1]} av ${m[2]} tecken" },
+        Regex("""Finish with (\d+) colli\?""") to { m -> "Slutföra med ${m[1]} kolli?" },
+        Regex("""(\d+) of (\d+) shipments with an expected number differed from it\.""") to
+            { m -> "${m[1]} av ${m[2]} leveranser med ett förväntat antal avvek från det." },
+        Regex("""before: (.+)""") to { m -> "före: ${m[1]}" },
         Regex("""(\d+) min ago""") to { m -> "för ${m[1]} min sedan" },
         Regex("""(\d+) h ago""") to { m -> "för ${m[1]} h sedan" },
         Regex("""(\d+) d ago""") to { m -> "för ${m[1]} d sedan" },

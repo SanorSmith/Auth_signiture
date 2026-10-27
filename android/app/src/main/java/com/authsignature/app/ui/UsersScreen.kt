@@ -219,7 +219,7 @@ fun UsersScreen() {
 }
 
 @Composable
-private fun Pill(text: String, container: androidx.compose.ui.graphics.Color, content: androidx.compose.ui.graphics.Color) {
+fun Pill(text: String, container: androidx.compose.ui.graphics.Color, content: androidx.compose.ui.graphics.Color) {
     Surface(shape = RoundedCornerShape(50), color = container) {
         Text(text, modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = content)
     }

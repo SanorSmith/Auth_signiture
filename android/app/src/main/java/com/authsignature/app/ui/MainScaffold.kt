@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -53,6 +54,7 @@ private enum class Tab(val label: String, val icon: ImageVector) {
     Requests("Requests", Icons.Filled.Inbox),
     Scan("Scan", Icons.Filled.QrCodeScanner),
     Monitor("Monitor", Icons.Filled.Visibility),
+    Counter("Colli counter", Icons.Filled.Inventory2),
     Users("Users", Icons.Filled.Group),
     Account("Account", Icons.Filled.Person),
 }
@@ -62,6 +64,7 @@ private fun available(u: User) = buildList {
     if (u.can("manage_requests")) add(Tab.Requests)
     if (u.can("request")) add(Tab.Scan)
     if (u.can("monitor")) add(Tab.Monitor)
+    if (u.can("colli_counter")) add(Tab.Counter)
     if (u.canManageUsers) add(Tab.Users)
     add(Tab.Account)
 }
@@ -72,6 +75,7 @@ private fun tabFor(url: String) = when {
     url.startsWith("/admin") -> Tab.Requests
     url.startsWith("/client") -> Tab.Scan
     url.startsWith("/monitor") -> Tab.Monitor
+    url.startsWith("/counter") -> Tab.Counter
     else -> null
 }
 
@@ -193,6 +197,7 @@ fun MainScaffold(user: User, openUrl: String?, onUrlHandled: () -> Unit) {
                 Tab.Requests -> AdminScreen()
                 Tab.Scan -> ClientScreen()
                 Tab.Monitor -> MonitorScreen()
+                Tab.Counter -> CounterTab()
                 Tab.Users -> UsersScreen()
                 Tab.Account -> AccountScreen(user)
             }

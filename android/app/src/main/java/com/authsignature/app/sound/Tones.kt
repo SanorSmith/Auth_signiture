@@ -43,7 +43,11 @@ enum class Tone(val key: String, val label: String, val hint: String, val vibrat
     Missing("missing", "Not found", "No code for that number yet", longArrayOf(120), false),
     Done("done", "Done", "An action went through", longArrayOf(40), false),
     Deleted("deleted", "Denied or removed", "A request or user was denied, removed or deleted", longArrayOf(80), false),
-    Error("error", "Error", "Something was not accepted", longArrayOf(200), false);
+    Error("error", "Error", "Something was not accepted", longArrayOf(200), false),
+    Counted("counted", "Package counted", "A package was added to the count", longArrayOf(30), false),
+    Duplicate("duplicate", "Package already counted", "The same package was scanned twice", longArrayOf(80, 60, 80), false),
+    Mismatch("mismatch", "Wrong shipment", "The package does not belong to this shipment", longArrayOf(300, 120, 300, 120, 300), false),
+    Finished("finished", "Count finished", "The shipment count was saved", longArrayOf(100, 60, 200), false);
 
     companion object {
         fun forKind(kind: String) = entries.firstOrNull { it.key == kind }
@@ -101,6 +105,20 @@ object Tones {
         Tone.Done to listOf(Voice(880.0, 0f, 0.16f, 0.16f), Voice(1318.5, 0.1f, 0.35f, 0.16f)),
         Tone.Deleted to listOf(Voice(392.0, 0f, 0.18f, 0.18f, Wave.Triangle), Voice(261.63, 0.12f, 0.4f, 0.18f, Wave.Triangle)),
         Tone.Error to listOf(Voice(174.61, 0f, 0.45f, 0.07f, Wave.Sawtooth)),
+        // Colli counter: a quick tick, two low beeps, a siren-like alert, a completion chime.
+        Tone.Counted to listOf(Voice(1568.0, 0f, 0.09f, 0.16f)),
+        Tone.Duplicate to listOf(Voice(330.0, 0f, 0.14f, 0.2f, Wave.Triangle), Voice(330.0, 0.22f, 0.14f, 0.2f, Wave.Triangle)),
+        Tone.Mismatch to listOf(
+            Voice(880.0, 0f, 0.4f, 0.1f, Wave.Sawtooth),
+            Voice(622.25, 0.45f, 0.4f, 0.1f, Wave.Sawtooth),
+            Voice(880.0, 0.9f, 0.4f, 0.1f, Wave.Sawtooth),
+            Voice(622.25, 1.35f, 0.55f, 0.1f, Wave.Sawtooth),
+        ),
+        Tone.Finished to listOf(
+            Voice(523.25, 0f, 0.5f, 0.18f, bell = true),
+            Voice(659.25, 0.14f, 0.5f, 0.18f, bell = true),
+            Voice(783.99, 0.28f, 0.9f, 0.18f, bell = true),
+        ),
     )
 
     private val cache = HashMap<Tone, ShortArray>()

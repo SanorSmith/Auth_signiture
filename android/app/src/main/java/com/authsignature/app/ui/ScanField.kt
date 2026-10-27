@@ -43,6 +43,9 @@ fun ScanNumberField(
     focusRequester: FocusRequester,
     modifier: Modifier = Modifier,
     label: String = "10-digit number",
+    digitsOnly: Boolean = true,
+    maxLength: Int = 10,
+    enabled: Boolean = true,
 ) {
     val keyboard = LocalSoftwareKeyboardController.current
     var manual by remember { mutableStateOf(false) }
@@ -60,12 +63,13 @@ fun ScanNumberField(
         }
         OutlinedTextField(
             value = value,
-            onValueChange = { onValueChange(it.filter(Char::isDigit).take(10)) },
+            onValueChange = { onValueChange((if (digitsOnly) it.filter(Char::isDigit) else it.filter(Char::isLetterOrDigit).uppercase()).take(maxLength)) },
+            enabled = enabled,
             singleLine = true,
             placeholder = { Text("Scan the number", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
             textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 22.sp, letterSpacing = 3.sp, textAlign = TextAlign.Center),
             shape = RoundedCornerShape(12.dp),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Send),
+            keyboardOptions = KeyboardOptions(keyboardType = if (digitsOnly) KeyboardType.Number else KeyboardType.Text, imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { onSubmit() }, onDone = { onSubmit() }),
             modifier = Modifier
                 .fillMaxWidth()

@@ -86,6 +86,19 @@ class Api(private val baseUrl: String, private val token: () -> String?) {
     suspend fun lookup(code: String): String =
         json.decodeFromString<LookupResult>(call("POST", "/lookup", obj("code" to code))).vcode.orEmpty()
 
+    // --- colli counter -----------------------------------------------------------------------
+    suspend fun counterState() = json.decodeFromString<CounterState>(call("GET", "/counter/state"))
+    suspend fun counterScan(code: String) = json.decodeFromString<ScanReply>(call("POST", "/counter/scan", obj("code" to code)))
+    suspend fun counterResolve(code: String, choice: String) =
+        json.decodeFromString<ResolveReply>(call("POST", "/counter/resolve", obj("code" to code, "choice" to choice)))
+    suspend fun counterAdjust(delta: Int) = json.decodeFromString<CounterState>(call("POST", "/counter/adjust", obj("delta" to delta)))
+    suspend fun counterExpected(expected: Int?) = json.decodeFromString<CounterState>(call("POST", "/counter/expected", obj("expected" to expected)))
+    suspend fun counterUndo() = json.decodeFromString<CounterState>(call("POST", "/counter/undo"))
+    suspend fun counterCancel() = json.decodeFromString<CounterState>(call("POST", "/counter/cancel"))
+    suspend fun counterFinish() = json.decodeFromString<FinishedCount>(call("POST", "/counter/finish"))
+    suspend fun counterStats(unit: String, from: String, to: String, mine: Boolean, compare: Boolean) =
+        json.decodeFromString<StatsReply>(call("GET", "/counter/stats?unit=$unit&from=$from&to=$to&mine=${if (mine) 1 else 0}&compare=${if (compare) 1 else 0}"))
+
     // --- admin -------------------------------------------------------------------------------
     suspend fun admin() = json.decodeFromString<AdminState>(call("GET", "/admin"))
     suspend fun issue(id: Int) = call("POST", "/admin/issue", obj("id" to id))
