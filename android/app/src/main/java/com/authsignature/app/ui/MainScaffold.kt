@@ -140,9 +140,8 @@ fun MainScaffold(user: User, openUrl: String?, onUrlHandled: () -> Unit) {
     // A notification arrives while the app is open: its tone, and a banner that opens the right screen.
     LaunchedEffect(Unit) {
         container.poller.events.collect { notice ->
+            // One sound: the app plays its own tone while it is open. The phone's notification sound is only for when it is closed.
             container.signalFor(notice)
-            // The phone's own notification sound too, so an alert is heard even if the tone is not.
-            com.authsignature.app.notify.NotificationHelper.show(context, notice)
             scope.launch {
                 val result = snackbar.showSnackbar(
                     message = "${notice.title}\n${notice.body}",

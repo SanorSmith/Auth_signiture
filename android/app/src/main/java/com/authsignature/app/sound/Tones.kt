@@ -30,8 +30,8 @@ private data class Voice(
 )
 
 /**
- * Every notification and action has its own melody. Notifications from other people last about a
- * second; the sounds that confirm your own action are short so scanning stays quick.
+ * Every notification and action has its own melody. Notifications from other people are one or two
+ * struck notes, about a third of a second; the sounds that confirm your own action are short so scanning stays quick.
  */
 enum class Tone(val key: String, val label: String, val hint: String, val vibration: LongArray, val notification: Boolean) {
     NewRequest("new_request", "New request", "A client asked for a code", longArrayOf(180, 90, 180), true),
@@ -63,59 +63,53 @@ object Tones {
     private const val LOUDNESS = 2.2f
 
     private val scores: Map<Tone, List<Voice>> = mapOf(
-        // New request (for the admin): two bright bell notes going up, E5 then B5.
+        // Notifications from other people: one or two struck notes, about a third of a second. Each has
+        // its own melody and sound, so they can be told apart without looking.
+        // New request (for the admin): two bright bell notes going up, G5 then D6.
         Tone.NewRequest to listOf(
-            Voice(659.25, 0f, 0.6f, 0.24f, bell = true, pluck = true, rich = true),
-            Voice(987.77, 0.17f, 0.85f, 0.26f, bell = true, pluck = true, rich = true),
+            Voice(783.99, 0f, 0.22f, 0.24f, bell = true, pluck = true),
+            Voice(1174.66, 0.1f, 0.34f, 0.26f, bell = true, pluck = true),
         ),
-        // Password reset: three quick taps climbing, G5 B5 D6, like a knock.
-        Tone.ResetRequested to listOf(
-            Voice(783.99, 0f, 0.3f, 0.22f, pluck = true, rich = true),
-            Voice(987.77, 0.1f, 0.3f, 0.22f, pluck = true, rich = true),
-            Voice(1174.66, 0.2f, 0.7f, 0.24f, bell = true, pluck = true, rich = true),
-        ),
-        // Code ready (for the client): a fast happy sparkle, C6 E6 G6.
+        // Password reset: one clear high bell ping, F6.
+        Tone.ResetRequested to listOf(Voice(1396.91, 0f, 0.4f, 0.24f, bell = true, pluck = true)),
+        // Code ready (for the client): a quick happy sparkle, C6 E6 G6.
         Tone.CodeIssued to listOf(
-            Voice(1046.5, 0f, 0.4f, 0.2f, bell = true, pluck = true, rich = true),
-            Voice(1318.5, 0.09f, 0.4f, 0.2f, bell = true, pluck = true, rich = true),
-            Voice(1568.0, 0.18f, 0.85f, 0.22f, bell = true, pluck = true, rich = true),
+            Voice(1046.5, 0f, 0.18f, 0.2f, bell = true, pluck = true),
+            Voice(1318.5, 0.07f, 0.18f, 0.2f, bell = true, pluck = true),
+            Voice(1568.0, 0.14f, 0.32f, 0.22f, bell = true, pluck = true),
         ),
         // Denied: two soft notes falling, A4 then E4. Gentle, not alarming.
         Tone.RequestDenied to listOf(
-            Voice(440.0, 0f, 0.45f, 0.24f, Wave.Triangle, pluck = true, rich = true),
-            Voice(329.63, 0.2f, 0.7f, 0.24f, Wave.Triangle, pluck = true, rich = true),
+            Voice(440.0, 0f, 0.24f, 0.26f, Wave.Triangle, warm = true, pluck = true),
+            Voice(329.63, 0.12f, 0.34f, 0.26f, Wave.Triangle, warm = true, pluck = true),
         ),
-        // Removed: three short steps down, G4 D4 A3.
-        Tone.RequestRemoved to listOf(
-            Voice(392.0, 0f, 0.3f, 0.24f, Wave.Triangle, pluck = true, rich = true),
-            Voice(293.66, 0.14f, 0.3f, 0.24f, Wave.Triangle, pluck = true, rich = true),
-            Voice(220.0, 0.28f, 0.6f, 0.26f, Wave.Triangle, pluck = true, rich = true),
-        ),
-        // Access changed: a soft shimmer, E5 G#5 B5 almost together.
+        // Removed: one low, soft thump, G3.
+        Tone.RequestRemoved to listOf(Voice(196.0, 0f, 0.38f, 0.34f, Wave.Triangle, warm = true, pluck = true)),
+        // Access changed: two notes together, a soft open chord, E5 and B5.
         Tone.AccessChanged to listOf(
-            Voice(659.25, 0f, 0.8f, 0.16f, bell = true, pluck = true, rich = true),
-            Voice(830.61, 0.05f, 0.8f, 0.16f, bell = true, pluck = true, rich = true),
-            Voice(987.77, 0.1f, 0.9f, 0.16f, bell = true, pluck = true, rich = true),
+            Voice(659.25, 0f, 0.4f, 0.18f, bell = true, pluck = true),
+            Voice(987.77, 0f, 0.4f, 0.16f, bell = true, pluck = true),
         ),
-        Tone.Sent to listOf(Voice(783.99, 0f, 0.18f, 0.14f), Voice(1046.5, 0.12f, 0.3f, 0.14f)),
-        Tone.Found to listOf(Voice(1318.5, 0f, 0.8f, 0.13f, warm = true)),
-        Tone.Missing to listOf(Voice(220.0, 0f, 0.25f, 0.16f, Wave.Triangle), Voice(196.0, 0.2f, 0.4f, 0.16f, Wave.Triangle)),
-        Tone.Done to listOf(Voice(880.0, 0f, 0.16f, 0.16f), Voice(1318.5, 0.1f, 0.35f, 0.16f)),
-        Tone.Deleted to listOf(Voice(392.0, 0f, 0.18f, 0.18f, Wave.Triangle), Voice(261.63, 0.12f, 0.4f, 0.18f, Wave.Triangle)),
-        Tone.Error to listOf(Voice(174.61, 0f, 0.45f, 0.07f, Wave.Sawtooth)),
+        // Short confirmations of your own actions.
+        Tone.Sent to listOf(Voice(783.99, 0f, 0.12f, 0.16f, pluck = true), Voice(1046.5, 0.07f, 0.18f, 0.16f, pluck = true)),
+        Tone.Found to listOf(Voice(1318.5, 0f, 0.26f, 0.16f, warm = true, pluck = true)),
+        Tone.Missing to listOf(Voice(220.0, 0f, 0.15f, 0.2f, Wave.Triangle, pluck = true), Voice(196.0, 0.11f, 0.22f, 0.2f, Wave.Triangle, pluck = true)),
+        Tone.Error to listOf(Voice(196.0, 0f, 0.26f, 0.17f, Wave.Sawtooth, pluck = true)),
+        Tone.Done to listOf(Voice(880.0, 0f, 0.1f, 0.16f, pluck = true), Voice(1318.5, 0.07f, 0.2f, 0.16f, pluck = true)),
+        Tone.Deleted to listOf(Voice(392.0, 0f, 0.14f, 0.2f, Wave.Triangle, pluck = true), Voice(261.63, 0.09f, 0.24f, 0.2f, Wave.Triangle, pluck = true)),
         // Colli counter: a quick tick, two low beeps, a siren-like alert, a completion chime.
-        Tone.Counted to listOf(Voice(1568.0, 0f, 0.09f, 0.16f)),
-        Tone.Duplicate to listOf(Voice(330.0, 0f, 0.14f, 0.2f, Wave.Triangle), Voice(330.0, 0.22f, 0.14f, 0.2f, Wave.Triangle)),
+        Tone.Counted to listOf(Voice(1568.0, 0f, 0.09f, 0.16f, pluck = true)),
+        Tone.Duplicate to listOf(Voice(330.0, 0f, 0.12f, 0.22f, Wave.Triangle, pluck = true), Voice(330.0, 0.17f, 0.12f, 0.22f, Wave.Triangle, pluck = true)),
         Tone.Mismatch to listOf(
-            Voice(880.0, 0f, 0.4f, 0.1f, Wave.Sawtooth),
-            Voice(622.25, 0.45f, 0.4f, 0.1f, Wave.Sawtooth),
-            Voice(880.0, 0.9f, 0.4f, 0.1f, Wave.Sawtooth),
-            Voice(622.25, 1.35f, 0.55f, 0.1f, Wave.Sawtooth),
+            Voice(880.0, 0f, 0.2f, 0.16f, Wave.Sawtooth),
+            Voice(622.25, 0.22f, 0.2f, 0.16f, Wave.Sawtooth),
+            Voice(880.0, 0.44f, 0.2f, 0.16f, Wave.Sawtooth),
+            Voice(622.25, 0.66f, 0.3f, 0.16f, Wave.Sawtooth),
         ),
         Tone.Finished to listOf(
-            Voice(523.25, 0f, 0.5f, 0.18f, bell = true),
-            Voice(659.25, 0.14f, 0.5f, 0.18f, bell = true),
-            Voice(783.99, 0.28f, 0.9f, 0.18f, bell = true),
+            Voice(523.25, 0f, 0.2f, 0.18f, bell = true, pluck = true),
+            Voice(659.25, 0.08f, 0.2f, 0.18f, bell = true, pluck = true),
+            Voice(783.99, 0.16f, 0.36f, 0.2f, bell = true, pluck = true),
         ),
     )
 
@@ -137,8 +131,11 @@ object Tones {
     private fun envelope(t: Float, dur: Float, top: Float, pluck: Boolean = false): Float {
         if (t < 0f || t > dur) return 0f
         if (pluck) {
+            // Struck: full level in 5 ms, smooth decay to a faint level, then a short fade (no long tail).
             if (t < 0.005f) return top * (t / 0.005f)
-            return top * (0.0001f / top).pow((t - 0.005f) / (dur - 0.005f))
+            val body = dur - 0.02f
+            if (t >= body) return top * 0.03f * (1f - (t - body) / 0.02f)
+            return top * 0.03f.pow((t - 0.005f) / (body - 0.005f))
         }
         if (t < 0.02f) return top * (t / 0.02f)
         fun exp(a: Float, b: Float, from: Float, to: Float): Float = a * (b / a).pow((t - from) / (to - from))
@@ -168,8 +165,7 @@ object Tones {
     /** The tone as 16-bit mono samples. Everything passes a soft limiter so the louder sound never distorts. */
     fun render(tone: Tone): ShortArray = cache.getOrPut(tone) {
         val voices = scores.getValue(tone)
-        // A little room at the end for the echo to die away.
-        val mix = FloatArray(((seconds(tone) + 0.1f + 0.45f) * RATE).toInt())
+        val mix = FloatArray(((seconds(tone) + 0.1f) * RATE).toInt())
         for (v in voices) {
             addNote(mix, v.f, v.at, v.dur, v.peak, v.wave, v.pluck)
             // A second voice a few cents sharp makes the note fuller, less like a plain test tone.
@@ -178,16 +174,6 @@ object Tones {
             if (v.bell) {
                 addNote(mix, v.f * 2.76, v.at, v.dur * 0.55f, v.peak * 0.3f, Wave.Sine, v.pluck)
                 addNote(mix, v.f * 5.4, v.at, v.dur * 0.3f, v.peak * 0.12f, Wave.Sine, v.pluck)
-            }
-        }
-        // A short soft echo (about a tenth of a second, fading) so the notes ring instead of stopping dead.
-        if (tone.notification) {
-            val d1 = (0.11f * RATE).toInt()
-            val d2 = (0.22f * RATE).toInt()
-            val dry = mix.copyOf()
-            for (i in mix.indices) {
-                if (i >= d1) mix[i] += dry[i - d1] * 0.22f
-                if (i >= d2) mix[i] += dry[i - d2] * 0.1f
             }
         }
         ShortArray(mix.size) { (tanh(mix[it].toDouble()) * 0.95 * Short.MAX_VALUE).toInt().toShort() }
