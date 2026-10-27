@@ -12,6 +12,11 @@ export const CODE_MAX = 64;
 
 export type Rule = { len: number; prefix: number };
 
+// What is remembered about a carrier's codes: only their first few characters, their length and how
+// many leading characters belonged to the shipment. Never a whole package code.
+export const LEAD_LEN = 3;
+export const leadOf = (code: string) => code.slice(0, LEAD_LEN);
+
 // Scanners add nothing visible, but labels print "(00) 3735..." and people type spaces and dashes.
 export function normalizeCode(raw: unknown): string | null {
   const code = String(raw ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");

@@ -7,7 +7,7 @@ import { signal } from "@/lib/tones";
 import { useT } from "../lang-provider";
 import { ScanInput } from "../scan-input";
 
-const EMPTY: CounterState = { active: false, count: 0, reference: null, rule: null, expected: null, recent: [] };
+const EMPTY: CounterState = { active: false, count: 0, reference: null, rule: null, expected: null, source: null, recent: [] };
 
 type Kind = "counted" | "duplicate" | "forced" | "ignored";
 type Entry = { code: string; kind: Kind };
@@ -19,6 +19,7 @@ const BADGE: Record<Kind, string> = {
   forced: "bg-warn-soft text-warn",
   ignored: "border border-line bg-page text-muted",
 };
+const SOURCE = { memory: "From earlier counts", scans: "Learned from these scans", adjusted: "Adjusted by you" } as const;
 const LABEL: Record<Kind, string> = {
   counted: "Counted",
   duplicate: "Already counted",
@@ -223,7 +224,10 @@ export function CounterPanel({ initial }: { initial: CounterState }) {
                 <span className="text-muted">{ref.slice(rule.prefix)}</span>
               </p>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted">{t(`Matching: first ${rule.prefix} of ${rule.len} characters`)}</span>
+                <span className="text-xs text-muted">
+                  {t(`Matching: first ${rule.prefix} of ${rule.len} characters`)}
+                  {state.source && <> · {t(SOURCE[state.source])}</>}
+                </span>
                 <span className="flex gap-1.5">
                   <button
                     type="button"

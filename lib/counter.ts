@@ -1,5 +1,5 @@
 import { sql } from "./db";
-import { adjustRule, fits, learnRule, normalizeCode, type Rule } from "./counter-match";
+import { adjustRule, fits, leadOf, learnRule, normalizeCode, type Rule } from "./counter-match";
 
 // The colli counter: a person counts the packages of one shipment by scanning each package ID.
 // The IDs are kept only while the count is open (a "draft"). When it is finished, only the number of
@@ -11,6 +11,7 @@ export type CounterState = {
   reference: string | null; // the first package scanned; the rule compares against it
   rule: Rule | null;
   expected: number | null;
+  source: "memory" | "scans" | "adjusted" | null; // where the rule came from
   recent: { code: string; forced: boolean; at: number }[]; // newest first
 };
 
@@ -24,8 +25,8 @@ async function prune() {
 
 export async function counterState(uid: number): Promise<CounterState> {
   await prune();
-  const draft = (await sql`SELECT id, rule_len, rule_prefix, expected FROM counter_drafts WHERE user_id = ${uid}`)[0];
-  if (!draft) return { active: false, count: 0, reference: null, rule: null, expected: null, recent: [] };
+  const draft = (await sql`SELECT id, rule_len, rule_prefix, rule_source, expected FROM counter_drafts WHERE user_id = ${uid}`)[0];
+  if (!draft) return { active: false, count: 0, reference: null, rule: null, expected: null, source: null, recent: [] };
   const count = (await sql`SELECT count(*)::int AS n FROM counter_scans WHERE draft_id = ${draft.id}`)[0].n as number;
   const reference = (await sql`SELECT code FROM counter_scans WHERE draft_id = ${draft.id} ORDER BY id LIMIT 1`)[0]?.code as string | undefined;
   const recent = await sql`SELECT code, forced, created_at FROM counter_scans WHERE draft_id = ${draft.id} ORDER BY id DESC LIMIT ${RECENT}`;
@@ -35,6 +36,7 @@ export async function counterState(uid: number): Promise<CounterState> {
     reference: reference ?? null,
     rule: draft.rule_len ? { len: draft.rule_len as number, prefix: draft.rule_prefix as number } : null,
     expected: (draft.expected as number | null) ?? null,
+    source: draft.rule_len ? ((draft.rule_source as CounterState["source"]) ?? "scans") : null,
     recent: recent.map((r) => ({ code: r.code as string, forced: r.forced as boolean, at: new Date(r.created_at as string).getTime() })),
   };
 }
@@ -64,9 +66,13 @@ export async function counterScan(uid: number, raw: unknown): Promise<{ outcome:
   if (seen.length) return { outcome: "duplicate", code, state: await counterState(uid) };
 
   const known: Rule | null = draft.rule_len ? { len: draft.rule_len, prefix: draft.rule_prefix as number } : null;
-  const rule = known ?? learnRule(first, code);
+  // With no rule yet, codes of this kind seen in earlier counts decide; otherwise the two scans teach it.
+  const remembered = known ? null : await rememberedRule(first);
+  const rule = known ?? remembered ?? learnRule(first, code);
   if (!rule || !fits(rule, first, code)) return { outcome: "mismatch", code, state: await counterState(uid) };
-  if (!known) await sql`UPDATE counter_drafts SET rule_len = ${rule.len}, rule_prefix = ${rule.prefix} WHERE id = ${draft.id}`;
+  if (!known) {
+    await sql`UPDATE counter_drafts SET rule_len = ${rule.len}, rule_prefix = ${rule.prefix}, rule_source = ${remembered ? "memory" : "scans"} WHERE id = ${draft.id}`;
+  }
   await sql`INSERT INTO counter_scans (draft_id, code) VALUES (${draft.id}, ${code}) ON CONFLICT DO NOTHING`;
   return { outcome: "counted", code, state: await counterState(uid) };
 }
@@ -75,10 +81,16 @@ export type Finished = { colli: number; expected: number | null };
 
 // Saves the number of colli and forgets the package IDs.
 export async function counterFinish(uid: number, email: string, expectedOverride?: number | null): Promise<{ error: string } | ({ ok: true } & Finished)> {
-  const draft = (await sql`SELECT id, expected FROM counter_drafts WHERE user_id = ${uid}`)[0];
+  const draft = (await sql`SELECT id, expected, rule_len, rule_prefix, adjusted FROM counter_drafts WHERE user_id = ${uid}`)[0];
   if (!draft) return { error: "Nothing has been counted yet" };
   const colli = (await sql`SELECT count(*)::int AS n FROM counter_scans WHERE draft_id = ${draft.id}`)[0].n as number;
   if (colli === 0) return { error: "Nothing has been counted yet" };
+  // A finished count of at least three packages teaches the rule shape for next time; one the person
+  // had to adjust by hand counts three times as much.
+  if (draft.rule_len && colli >= 3) {
+    const first = (await sql`SELECT code FROM counter_scans WHERE draft_id = ${draft.id} ORDER BY id LIMIT 1`)[0]?.code as string | undefined;
+    if (first) await rememberRule(first, { len: draft.rule_len as number, prefix: draft.rule_prefix as number }, draft.adjusted ? 3 : 1);
+  }
   const expected = expectedOverride === undefined ? ((draft.expected as number | null) ?? null) : expectedOverride;
   await sql`INSERT INTO counter_results (user_id, user_email, colli, expected) VALUES (${uid}, ${email}, ${colli}, ${expected})`;
   await sql`DELETE FROM counter_drafts WHERE id = ${draft.id}`;
@@ -111,7 +123,7 @@ export async function counterAdjust(uid: number, delta: number): Promise<Counter
   const draft = (await sql`SELECT id, rule_len, rule_prefix FROM counter_drafts WHERE user_id = ${uid}`)[0];
   if (draft?.rule_len) {
     const next = adjustRule({ len: draft.rule_len as number, prefix: draft.rule_prefix as number }, Math.trunc(delta));
-    await sql`UPDATE counter_drafts SET rule_prefix = ${next.prefix}, updated_at = now() WHERE id = ${draft.id}`;
+    await sql`UPDATE counter_drafts SET rule_prefix = ${next.prefix}, rule_source = 'adjusted', adjusted = true, updated_at = now() WHERE id = ${draft.id}`;
   }
   return counterState(uid);
 }
@@ -129,7 +141,7 @@ export async function counterUndo(uid: number): Promise<CounterState> {
   if (draft) {
     await sql`DELETE FROM counter_scans WHERE id = (SELECT id FROM counter_scans WHERE draft_id = ${draft.id} ORDER BY id DESC LIMIT 1)`;
     const left = (await sql`SELECT count(*)::int AS n FROM counter_scans WHERE draft_id = ${draft.id}`)[0].n as number;
-    if (left < 2) await sql`UPDATE counter_drafts SET rule_len = NULL, rule_prefix = NULL WHERE id = ${draft.id}`;
+    if (left < 2) await sql`UPDATE counter_drafts SET rule_len = NULL, rule_prefix = NULL, rule_source = NULL, adjusted = false WHERE id = ${draft.id}`;
   }
   return counterState(uid);
 }
@@ -137,6 +149,48 @@ export async function counterUndo(uid: number): Promise<CounterState> {
 export async function counterCancel(uid: number): Promise<CounterState> {
   await sql`DELETE FROM counter_drafts WHERE user_id = ${uid}`;
   return counterState(uid);
+}
+
+// --- Rule memory --------------------------------------------------------------------------------
+// What earlier counts showed about codes that start the same way and have the same length.
+
+const MAX_RULES = 500;
+
+async function rememberedRule(first: string): Promise<Rule | null> {
+  const rows = await sql`
+    SELECT len, prefix FROM counter_rules WHERE len = ${first.length} AND lead = ${leadOf(first)}
+    ORDER BY uses DESC, last_used DESC LIMIT 1`;
+  return rows[0] ? { len: rows[0].len as number, prefix: rows[0].prefix as number } : null;
+}
+
+async function rememberRule(first: string, rule: Rule, weight: number) {
+  await sql`
+    INSERT INTO counter_rules (len, lead, prefix, uses) VALUES (${rule.len}, ${leadOf(first)}, ${rule.prefix}, ${weight})
+    ON CONFLICT (len, lead, prefix) DO UPDATE SET uses = counter_rules.uses + ${weight}, last_used = now()`;
+  await sql`
+    DELETE FROM counter_rules WHERE id NOT IN (SELECT id FROM counter_rules ORDER BY uses DESC, last_used DESC LIMIT ${MAX_RULES})`;
+}
+
+export type RememberedRule = { id: number; lead: string; len: number; prefix: number; uses: number; lastUsed: number };
+
+export async function listRememberedRules(): Promise<RememberedRule[]> {
+  const rows = await sql`SELECT id, lead, len, prefix, uses, last_used FROM counter_rules ORDER BY uses DESC, last_used DESC`;
+  return rows.map((r) => ({
+    id: r.id as number,
+    lead: r.lead as string,
+    len: r.len as number,
+    prefix: r.prefix as number,
+    uses: r.uses as number,
+    lastUsed: new Date(r.last_used as string).getTime(),
+  }));
+}
+
+export async function forgetRule(id: number) {
+  await sql`DELETE FROM counter_rules WHERE id = ${id}`;
+}
+
+export async function forgetAllRules() {
+  await sql`DELETE FROM counter_rules`;
 }
 
 // --- Statistics ---------------------------------------------------------------------------------

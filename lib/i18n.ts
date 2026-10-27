@@ -336,6 +336,23 @@ const SV: Record<string, string> = {
   "The shipment count was saved": "Leveransräkningen sparades",
   "Count the colli of a shipment by scanning, and see the statistics": "Räkna kolli i en leverans genom att skanna, och se statistiken",
 
+  Rules: "Regler",
+  "Remembered rules": "Sparade regler",
+  "Forget all": "Glöm alla",
+  Forget: "Glöm",
+  "Nothing learned yet. Rules appear here after shipments of three or more packages are finished.": "Inget inlärt ännu. Regler visas här när leveranser med tre eller fler kolli har slutförts.",
+  "What the counter has learned about package codes. Only the shape is kept: the first 3 characters, the length and how many characters must match. Never a whole package code.":
+    "Vad räknaren har lärt sig om kollikoder. Bara formen sparas: de tre första tecknen, längden och hur många tecken som måste stämma. Aldrig en hel kollikod.",
+  "Starts with": "Börjar med",
+  Length: "Längd",
+  "Must match": "Måste stämma",
+  "May differ": "Får skilja",
+  "Times used": "Antal gånger",
+  "Last used": "Senast använd",
+  "From earlier counts": "Från tidigare räkningar",
+  "Learned from these scans": "Lärt från dessa skanningar",
+  "Adjusted by you": "Justerad av dig",
+
   // Notification texts
   "New verification request": "Ny verifieringsbegäran",
   "Password reset requested": "Nytt lösenord begärt",
@@ -368,6 +385,8 @@ const PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^Matching: first (\d+) of (\d+) characters$/, (m) => `Matchar: första ${m[1]} av ${m[2]} tecken`],
   [/^Finish with (\d+) colli\?$/, (m) => `Slutföra med ${m[1]} kolli?`],
   [/^(\d+) of (\d+) shipments with an expected number differed from it\.$/, (m) => `${m[1]} av ${m[2]} leveranser med ett förväntat antal avvek från det.`],
+  [/^first (\d+)$/, (m) => `första ${m[1]}`],
+  [/^last (\d+)$/, (m) => `sista ${m[1]}`],
   [/^Show all (\d+)$/, (m) => `Visa alla ${m[1]}`],
   [/^(\d+) min ago$/, (m) => `för ${m[1]} min sedan`],
   [/^(\d+) h ago$/, (m) => `för ${m[1]} h sedan`],

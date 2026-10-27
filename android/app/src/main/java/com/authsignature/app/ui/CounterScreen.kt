@@ -284,7 +284,14 @@ fun CounterScreen() {
                                     fontSize = 17.sp,
                                 )
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Matching: first ${rule.prefix} of ${rule.len} characters", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                                    Column(Modifier.weight(1f)) {
+                                        Text("Matching: first ${rule.prefix} of ${rule.len} characters", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        when (current.source) {
+                                            "memory" -> Text("From earlier counts", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                            "scans" -> Text("Learned from these scans", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            "adjusted" -> Text("Adjusted by you", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
                                     OutlinedButton(
                                         onClick = { call { setState(container.api.counterAdjust(-1)) } },
                                         enabled = !locked && rule.prefix > 1,

@@ -1,6 +1,7 @@
 "use server";
 
-import { requirePermission } from "./session";
+import { revalidatePath } from "next/cache";
+import { requireAdmin, requirePermission } from "./session";
 import {
   counterAdjust,
   counterCancel,
@@ -10,6 +11,8 @@ import {
   counterSetExpected,
   counterState,
   counterUndo,
+  forgetAllRules,
+  forgetRule,
 } from "./counter";
 
 // The colli counter's actions for the website. Each one is for the signed-in person's own count only.
@@ -47,4 +50,18 @@ export async function cancelCount() {
 export async function finishCount() {
   const s = await me();
   return counterFinish(s.uid, s.email);
+}
+
+// What the counter has learned about package codes: only administrators review and edit it.
+export async function forgetRememberedRule(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  if (Number.isInteger(id)) await forgetRule(id);
+  revalidatePath("/counter/rules");
+}
+
+export async function forgetAllRememberedRules() {
+  await requireAdmin();
+  await forgetAllRules();
+  revalidatePath("/counter/rules");
 }

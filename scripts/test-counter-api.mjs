@@ -41,9 +41,9 @@ check("signed in", !!ta && !!tb && !!tm);
 
 // Two shipments of an 18-digit carrier ID: same start, different last digits.
 const stamp = String(Date.now()).slice(-6);
-const base = `7350${stamp}12345`;
+const base = `ZQS${stamp}12345`; // test codes all start with ZQ, so the rules they teach can be removed safely
 const ship = (n) => `${base}${String(n).padStart(4, "0")}`;
-const other = `7351${stamp}99999${"0017"}`;
+const other = `ZQX${stamp}999990017`;
 
 check("a user without the permission is refused", (await call("GET", `${C}/state`, tm)).status === 403);
 check("no token is refused", (await call("GET", `${C}/state`, null)).status === 401);
@@ -111,6 +111,36 @@ const mineAfter = (await call("GET", `${C}/stats?unit=day&compare=0&mine=1`, tb)
 check("'only me' does not include another person's shipments", mineAfter.shipments === mineBefore.shipments, { mineBefore, mineAfter });
 const withCompare = (await call("GET", `${C}/stats?unit=week&from=2026-01-01&to=2026-03-31`, ta)).body;
 check("a period can be compared with the one before it", withCompare.compare && withCompare.compare.to === "2025-12-31" && withCompare.current.buckets.length >= 12, withCompare.compare);
+
+// --- rule memory: a finished count teaches the next one ----------------------------------------
+const zq = (n) => `ZQT${stamp}000${String(n).padStart(4, "0")}`;
+const zlen = zq(1).length;
+if (sql) await sql`DELETE FROM counter_rules WHERE lead = 'ZQT'`;
+await call("POST", `${C}/scan`, ta, { code: zq(1) });
+r = (await call("POST", `${C}/scan`, ta, { code: zq(2) })).body;
+check("without memory the rule is learned from the two scans", r.state.source === "scans" && r.state.rule.prefix === zlen - 3, r.state);
+s = (await call("POST", `${C}/adjust`, ta, { delta: 1 })).body;
+check("adjusting marks the rule as adjusted", s.source === "adjusted" && s.rule.prefix === zlen - 2, s);
+await call("POST", `${C}/scan`, ta, { code: zq(3) });
+check("the three packages finish", (await call("POST", `${C}/finish`, ta)).body.colli === 3);
+if (sql) {
+  const kept = await sql`SELECT len, prefix, uses FROM counter_rules WHERE lead = 'ZQT'`;
+  check("only the shape is kept, with extra weight for the adjustment", kept.length === 1 && kept[0].prefix === zlen - 2 && kept[0].uses === 3, kept);
+  const cols = await sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'counter_rules'`;
+  check("the memory table has no column for a whole code", !cols.some((c) => c.column_name === "code"), cols);
+}
+await call("POST", `${C}/scan`, ta, { code: zq(10) });
+r = (await call("POST", `${C}/scan`, ta, { code: zq(11) })).body;
+check("the next count of this kind starts from the remembered rule", r.outcome === "counted" && r.state.source === "memory" && r.state.rule.prefix === zlen - 2, r.state);
+await call("POST", `${C}/cancel`, ta);
+await call("POST", `${C}/scan`, ta, { code: zq(10) });
+r = (await call("POST", `${C}/scan`, ta, { code: zq(110) })).body;
+check("the remembered rule refuses a package the scans alone would have accepted", r.outcome === "mismatch", r);
+await call("POST", `${C}/cancel`, ta);
+if (sql) {
+  await sql`DELETE FROM counter_rules WHERE lead = 'ZQT'`;
+  await sql`DELETE FROM counter_rules WHERE lead IN ('ZQS', 'ZQX')`;
+}
 
 const sv = await call("POST", `${C}/finish`, ta, null, "sv");
 check("messages come back in Swedish", sv.body?.error === "Inget har räknats ännu", sv.body);

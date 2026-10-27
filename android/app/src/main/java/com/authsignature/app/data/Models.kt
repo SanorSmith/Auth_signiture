@@ -107,6 +107,7 @@ data class CounterState(
     val reference: String? = null,
     val rule: CounterRule? = null,
     val expected: Int? = null,
+    val source: String? = null,
     val recent: List<RecentScan> = emptyList(),
 )
 
