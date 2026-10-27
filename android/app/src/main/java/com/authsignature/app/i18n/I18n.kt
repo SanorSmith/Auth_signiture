@@ -90,6 +90,10 @@ object I18n {
         Regex("""Its code (.+) stops working on the monitor and leaves the client's history\. This cannot be undone\.""") to
             { m -> "Koden ${m[1]} slutar fungera i kontrollen och försvinner ur kundens historik. Det går inte att ångra." },
         Regex("""All users \((\d+)\)""") to { m -> "Alla användare (${m[1]})" },
+        Regex("""The note says (\d+) colli, you counted (\d+)\.""") to { m -> "Följesedeln anger ${m[1]} kolli, du räknade ${m[2]}." },
+        Regex("""The note says (\d+) colli\.""") to { m -> "Följesedeln anger ${m[1]} kolli." },
+        Regex("""(\d+) of (\d+) on the note were scanned\.""") to { m -> "${m[1]} av ${m[2]} på följesedeln är skannade." },
+        Regex("""(Missing: .+|Extra: .+|Possible misread) \((\d+)\)""") to { m -> "${t(m[1])} (${m[2]})" },
         Regex("""(.+) will be signed out and lose access\. Their requests stay on record\.""") to
             { m -> "${m[1]} loggas ut och förlorar åtkomst. Deras begäranden finns kvar i historiken." },
         Regex("""Give this to (.+)\. It is shown only once, and they must choose a new password when they sign in\.""") to

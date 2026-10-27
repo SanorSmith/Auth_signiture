@@ -12,6 +12,7 @@ export type CounterState = {
   rule: Rule | null;
   expected: number | null;
   source: "memory" | "scans" | "adjusted" | null; // where the rule came from
+  noteCompare: boolean; // may the person compare with a delivery note photo? (an administrator can turn it off)
   recent: { code: string; forced: boolean; at: number }[]; // newest first
 };
 
@@ -25,8 +26,9 @@ async function prune() {
 
 export async function counterState(uid: number): Promise<CounterState> {
   await prune();
+  const noteCompare = await noteCompareEnabled();
   const draft = (await sql`SELECT id, rule_len, rule_prefix, rule_source, expected FROM counter_drafts WHERE user_id = ${uid}`)[0];
-  if (!draft) return { active: false, count: 0, reference: null, rule: null, expected: null, source: null, recent: [] };
+  if (!draft) return { active: false, count: 0, reference: null, rule: null, expected: null, source: null, noteCompare, recent: [] };
   const count = (await sql`SELECT count(*)::int AS n FROM counter_scans WHERE draft_id = ${draft.id}`)[0].n as number;
   const reference = (await sql`SELECT code FROM counter_scans WHERE draft_id = ${draft.id} ORDER BY id LIMIT 1`)[0]?.code as string | undefined;
   const recent = await sql`SELECT code, forced, created_at FROM counter_scans WHERE draft_id = ${draft.id} ORDER BY id DESC LIMIT ${RECENT}`;
@@ -37,6 +39,7 @@ export async function counterState(uid: number): Promise<CounterState> {
     rule: draft.rule_len ? { len: draft.rule_len as number, prefix: draft.rule_prefix as number } : null,
     expected: (draft.expected as number | null) ?? null,
     source: draft.rule_len ? ((draft.rule_source as CounterState["source"]) ?? "scans") : null,
+    noteCompare,
     recent: recent.map((r) => ({ code: r.code as string, forced: r.forced as boolean, at: new Date(r.created_at as string).getTime() })),
   };
 }
@@ -149,6 +152,28 @@ export async function counterUndo(uid: number): Promise<CounterState> {
 export async function counterCancel(uid: number): Promise<CounterState> {
   await sql`DELETE FROM counter_drafts WHERE user_id = ${uid}`;
   return counterState(uid);
+}
+
+// --- Delivery note comparison -----------------------------------------------------------------------
+// An administrator can switch it off. The setting is a row in app_settings; on unless it says "off".
+
+export async function noteCompareEnabled(): Promise<boolean> {
+  const rows = await sql`SELECT value FROM app_settings WHERE key = 'note_compare'`;
+  return rows[0]?.value !== "off";
+}
+
+export async function setNoteCompareEnabled(on: boolean) {
+  await sql`
+    INSERT INTO app_settings (key, value) VALUES ('note_compare', ${on ? "on" : "off"})
+    ON CONFLICT (key) DO UPDATE SET value = ${on ? "on" : "off"}`;
+}
+
+// The packages scanned so far in this person's open count, for the comparison.
+export async function scannedCodes(uid: number): Promise<string[]> {
+  const rows = await sql`
+    SELECT s.code FROM counter_scans s JOIN counter_drafts d ON d.id = s.draft_id
+    WHERE d.user_id = ${uid} ORDER BY s.id`;
+  return rows.map((r) => r.code as string);
 }
 
 // --- Rule memory --------------------------------------------------------------------------------

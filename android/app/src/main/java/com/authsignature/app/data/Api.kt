@@ -93,6 +93,10 @@ class Api(private val baseUrl: String, private val token: () -> String?) {
         json.decodeFromString<ResolveReply>(call("POST", "/counter/resolve", obj("code" to code, "choice" to choice)))
     suspend fun counterAdjust(delta: Int) = json.decodeFromString<CounterState>(call("POST", "/counter/adjust", obj("delta" to delta)))
     suspend fun counterExpected(expected: Int?) = json.decodeFromString<CounterState>(call("POST", "/counter/expected", obj("expected" to expected)))
+    suspend fun counterNoteRead(imageBase64: String) =
+        json.decodeFromString<NoteReading>(call("POST", "/counter/note-read", obj("image" to imageBase64, "mediaType" to "image/jpeg")))
+    suspend fun counterNoteCompare(ids: List<String>) =
+        json.decodeFromString<NoteComparison>(call("POST", "/counter/note-compare", obj("ids" to ids)))
     suspend fun counterUndo() = json.decodeFromString<CounterState>(call("POST", "/counter/undo"))
     suspend fun counterCancel() = json.decodeFromString<CounterState>(call("POST", "/counter/cancel"))
     suspend fun counterFinish() = json.decodeFromString<FinishedCount>(call("POST", "/counter/finish"))

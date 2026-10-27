@@ -323,6 +323,8 @@ fun CounterScreen() {
             }
         }
 
+        if (current.noteCompare && current.count > 0 && pending == null) NoteCompareSection(enabled = !locked)
+
         if (feed.isNotEmpty()) {
             AppCard {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {

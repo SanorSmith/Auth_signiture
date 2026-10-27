@@ -108,6 +108,7 @@ data class CounterState(
     val rule: CounterRule? = null,
     val expected: Int? = null,
     val source: String? = null,
+    val noteCompare: Boolean = false,
     val recent: List<RecentScan> = emptyList(),
 )
 
@@ -119,6 +120,22 @@ data class FinishedCount(val colli: Int = 0, val expected: Int? = null)
 
 @Serializable
 data class ResolveReply(val finished: FinishedCount? = null, val state: CounterState = CounterState())
+
+@Serializable
+data class NoteReading(val legible: Boolean = true, val ids: List<String> = emptyList(), val total: Int? = null, val supplier: String? = null)
+
+@Serializable
+data class PossibleMisread(val note: String, val scanned: String)
+
+@Serializable
+data class NoteComparison(
+    val matched: List<String> = emptyList(),
+    val missing: List<String> = emptyList(),
+    val extra: List<String> = emptyList(),
+    val possible: List<PossibleMisread> = emptyList(),
+    val noteCount: Int = 0,
+    val scannedCount: Int = 0,
+)
 
 @Serializable
 data class StatBucket(val start: String, val shipments: Int = 0, val colli: Int = 0)

@@ -6,8 +6,9 @@ import type { CounterState, Finished } from "@/lib/counter";
 import { signal } from "@/lib/tones";
 import { useT } from "../lang-provider";
 import { ScanInput } from "../scan-input";
+import { NoteCompare } from "./note-compare";
 
-const EMPTY: CounterState = { active: false, count: 0, reference: null, rule: null, expected: null, source: null, recent: [] };
+const EMPTY: CounterState = { active: false, count: 0, reference: null, rule: null, expected: null, source: null, noteCompare: false, recent: [] };
 
 type Kind = "counted" | "duplicate" | "forced" | "ignored";
 type Entry = { code: string; kind: Kind };
@@ -279,6 +280,8 @@ export function CounterPanel({ initial }: { initial: CounterState }) {
           </ul>
         </section>
       )}
+
+      {state.noteCompare && state.count > 0 && !pending && <NoteCompare disabled={locked} />}
 
       <section className="card flex flex-col gap-3 p-4">
         {confirm ? (

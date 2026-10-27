@@ -1,5 +1,6 @@
-import { listRememberedRules } from "@/lib/counter";
-import { forgetAllRememberedRules, forgetRememberedRule } from "@/lib/counter-actions";
+import { listRememberedRules, noteCompareEnabled } from "@/lib/counter";
+import { noteReadingConfigured } from "@/lib/counter-note";
+import { forgetAllRememberedRules, forgetRememberedRule, switchNoteCompare } from "@/lib/counter-actions";
 import { getT } from "@/lib/lang";
 import { requireAdmin } from "@/lib/session";
 import { Shell } from "../../shell";
@@ -11,6 +12,8 @@ export default async function RulesPage() {
   const s = await requireAdmin();
   const t = await getT();
   const rules = await listRememberedRules();
+  const noteOn = await noteCompareEnabled();
+  const keySet = noteReadingConfigured();
   return (
     <Shell
       title="Colli counter"
@@ -19,6 +22,26 @@ export default async function RulesPage() {
       width="lg"
     >
       <CounterTabs current="rules" isAdmin />
+      <section className="card mb-4 flex flex-col gap-3 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">{t("Compare with delivery note")}</h2>
+            <p className="text-sm text-muted">
+              {t("Users photograph the delivery note, an AI model reads the package IDs, and they are compared with the scanned packages. The photo is not stored, and the IDs are removed when the count ends.")}
+            </p>
+          </div>
+          <form action={switchNoteCompare}>
+            <input type="hidden" name="on" value={noteOn ? "0" : "1"} />
+            <button className={`btn btn-sm ${noteOn ? "btn-danger-ghost" : "btn-primary"}`}>{noteOn ? t("Turn off") : t("Turn on")}</button>
+          </form>
+        </div>
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          <span className={`badge ${noteOn ? "bg-success-soft text-success" : "border border-line bg-page text-muted"}`}>{noteOn ? t("On") : t("Off")}</span>
+          <span className={`badge ${keySet ? "bg-success-soft text-success" : "bg-warn-soft text-warn"}`}>
+            {keySet ? t("AI key is set") : t("AI key is missing: reading notes will not work until it is added")}
+          </span>
+        </p>
+      </section>
       <section className="card overflow-x-auto">
         <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
           <h2 className="font-semibold">{t("Remembered rules")} <span className="font-normal text-muted">({rules.length})</span></h2>

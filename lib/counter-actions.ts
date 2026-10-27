@@ -13,6 +13,7 @@ import {
   counterUndo,
   forgetAllRules,
   forgetRule,
+  setNoteCompareEnabled,
 } from "./counter";
 
 // The colli counter's actions for the website. Each one is for the signed-in person's own count only.
@@ -64,4 +65,11 @@ export async function forgetAllRememberedRules() {
   await requireAdmin();
   await forgetAllRules();
   revalidatePath("/counter/rules");
+}
+
+// Turning the delivery note comparison on or off for everyone.
+export async function switchNoteCompare(formData: FormData) {
+  await requireAdmin();
+  await setNoteCompareEnabled(formData.get("on") === "1");
+  revalidatePath("/counter", "layout");
 }

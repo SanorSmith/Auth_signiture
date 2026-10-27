@@ -112,6 +112,40 @@ check("'only me' does not include another person's shipments", mineAfter.shipmen
 const withCompare = (await call("GET", `${C}/stats?unit=week&from=2026-01-01&to=2026-03-31`, ta)).body;
 check("a period can be compared with the one before it", withCompare.compare && withCompare.compare.to === "2025-12-31" && withCompare.current.buckets.length >= 12, withCompare.compare);
 
+// --- delivery note comparison ------------------------------------------------------------------
+const nz = (n) => `ZQN${stamp}000${String(n).padStart(4, "0")}`;
+check("comparing with nothing counted is refused", (await call("POST", `${C}/note-compare`, ta, { ids: [nz(1)] })).status === 400);
+await call("POST", `${C}/scan`, ta, { code: nz(1) });
+await call("POST", `${C}/scan`, ta, { code: nz(2) });
+await call("POST", `${C}/scan`, ta, { code: nz(3) });
+let cmp = (await call("POST", `${C}/note-compare`, ta, { ids: [nz(1), nz(2).toLowerCase(), nz(3), nz(4)] })).body;
+check("a package on the note that was not scanned is missing", cmp.matched.length === 3 && cmp.missing.join() === nz(4) && cmp.extra.length === 0, cmp);
+cmp = (await call("POST", `${C}/note-compare`, ta, { ids: [nz(1), nz(2)] })).body;
+check("a scanned package not on the note is extra", cmp.extra.join() === nz(3) && cmp.missing.length === 0, cmp);
+cmp = (await call("POST", `${C}/note-compare`, ta, { ids: [nz(1), nz(2), nz(3).slice(0, -1) + "9"] })).body;
+check("one character off is reported as a possible misread", cmp.possible.length === 1 && cmp.missing.length === 0 && cmp.extra.length === 0, cmp);
+cmp = (await call("POST", `${C}/note-compare`, ta, { ids: [nz(1), nz(2), nz(3)] })).body;
+check("a complete note matches", cmp.matched.length === 3 && !cmp.missing.length && !cmp.extra.length && !cmp.possible.length, cmp);
+check("an empty list is refused", (await call("POST", `${C}/note-compare`, ta, { ids: [] })).status === 400);
+const readNoImage = await call("POST", `${C}/note-read`, ta, { image: "x", mediaType: "image/jpeg" });
+check("reading needs a real photo (or the AI key is not set)", readNoImage.status === 400 || readNoImage.status === 503, readNoImage);
+if (sql) {
+  await sql`INSERT INTO app_settings (key, value) VALUES ('note_compare', 'off') ON CONFLICT (key) DO UPDATE SET value = 'off'`;
+  try {
+    check("the administrator can turn the comparison off", (await call("GET", `${C}/state`, ta)).body.noteCompare === false);
+    check("compare is refused while it is off", (await call("POST", `${C}/note-compare`, ta, { ids: [nz(1)] })).status === 403);
+    check("reading is refused while it is off", (await call("POST", `${C}/note-read`, ta, { image: "x".repeat(200), mediaType: "image/jpeg" })).status === 403);
+  } finally {
+    await sql`DELETE FROM app_settings WHERE key = 'note_compare'`;
+  }
+  check("and on again by default", (await call("GET", `${C}/state`, ta)).body.noteCompare === true);
+}
+await call("POST", `${C}/finish`, ta);
+if (sql) {
+  const left = await sql`SELECT count(*)::int AS n FROM counter_scans s JOIN counter_drafts d ON d.id = s.draft_id WHERE s.code LIKE 'ZQN%'`;
+  check("no package ID of the note comparison is left after finishing", left[0].n === 0, left);
+}
+
 // --- rule memory: a finished count teaches the next one ----------------------------------------
 const zq = (n) => `ZQT${stamp}000${String(n).padStart(4, "0")}`;
 const zlen = zq(1).length;
@@ -139,7 +173,7 @@ check("the remembered rule refuses a package the scans alone would have accepted
 await call("POST", `${C}/cancel`, ta);
 if (sql) {
   await sql`DELETE FROM counter_rules WHERE lead = 'ZQT'`;
-  await sql`DELETE FROM counter_rules WHERE lead IN ('ZQS', 'ZQX')`;
+  await sql`DELETE FROM counter_rules WHERE lead IN ('ZQS', 'ZQX', 'ZQN')`;
 }
 
 const sv = await call("POST", `${C}/finish`, ta, null, "sv");
