@@ -90,6 +90,7 @@ object I18n {
         Regex("""Its code (.+) stops working on the monitor and leaves the client's history\. This cannot be undone\.""") to
             { m -> "Koden ${m[1]} slutar fungera i kontrollen och försvinner ur kundens historik. Det går inte att ångra." },
         Regex("""All users \((\d+)\)""") to { m -> "Alla användare (${m[1]})" },
+        Regex("""(\d+) pages read\. (\d+) new IDs from the last page\.""") to { m -> "${m[1]} sidor lästa. ${m[2]} nya ID från den sista sidan." },
         Regex("""The note says (\d+) colli, you counted (\d+)\.""") to { m -> "Följesedeln anger ${m[1]} kolli, du räknade ${m[2]}." },
         Regex("""The note says (\d+) colli\.""") to { m -> "Följesedeln anger ${m[1]} kolli." },
         Regex("""(\d+) of (\d+) on the note were scanned\.""") to { m -> "${m[1]} av ${m[2]} på följesedeln är skannade." },

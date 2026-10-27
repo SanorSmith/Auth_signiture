@@ -9,6 +9,8 @@ type Stage = "idle" | "reading" | "review" | "comparing" | "result";
 type Reading = { legible: boolean; ids: string[]; total: number | null; supplier: string | null; comment: string | null };
 
 const ENDPOINT = "/api/mobile/counter";
+const MAX_PAGES = 10;
+const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
 // A photo is shrunk before it is sent, but kept large enough that small print and handwriting stay readable.
 async function shrink(file: File): Promise<string> {
@@ -46,6 +48,9 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
   const [result, setResult] = useState<Comparison | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [why, setWhy] = useState<string | null>(null);
+  const [pages, setPages] = useState(0);
+  const [added, setAdded] = useState<number | null>(null); // new IDs found on the page just added
+  const adding = useRef(false);
   const file = useRef<HTMLInputElement>(null);
 
   // Leaving the screen (or finishing the count) removes everything that was read.
@@ -64,10 +69,16 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
     setText("");
     setResult(null);
     setError(null);
+    setPages(0);
+    setAdded(null);
   };
 
   const onPhoto = async (f: File | undefined) => {
     if (!f) return;
+    // A page added to what was already read keeps the list; a first photo starts a new one.
+    const more = adding.current;
+    adding.current = false;
+    const back = more ? "review" : "idle";
     setError(null);
     setWhy(null);
     setStage("reading");
@@ -76,23 +87,36 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
       const res = await post<Reading>("note-read", { image, mediaType: "image/jpeg" });
       if (!res.ok) {
         setError(res.error);
-        setStage("idle");
+        setStage(back);
         void signal("error");
         return;
       }
       if (!res.data.legible || res.data.ids.length === 0) {
         setError("No package IDs could be read from this photo. Take a clearer, straight-on photo of the note.");
         setWhy(res.data.comment);
-        setStage("idle");
+        setStage(back);
         void signal("error");
         return;
       }
-      setReading(res.data);
-      setText(res.data.ids.join("\n"));
+      if (more) {
+        const have = text.split(/[\s,;]+/).filter(Boolean);
+        const known = new Set(have.map(norm));
+        const fresh = res.data.ids.filter((id) => !known.has(norm(id)));
+        setText([...have, ...fresh].join("\n"));
+        setPages((n) => n + 1);
+        setAdded(fresh.length);
+        // Totals on separate pages are often subtotals, so the note's total is not used for several pages.
+        setReading((r) => (r ? { ...r, total: null } : res.data));
+      } else {
+        setReading(res.data);
+        setText(res.data.ids.join("\n"));
+        setPages(1);
+        setAdded(null);
+      }
       setStage("review");
     } catch {
       setError("Could not read the delivery note. Try again.");
-      setStage("idle");
+      setStage(back);
     } finally {
       if (file.current) file.current.value = "";
     }
@@ -125,10 +149,12 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
       </div>
     );
 
+  const picker = <input ref={file} type="file" accept="image/*" capture="environment" hidden onChange={(e) => void onPhoto(e.target.files?.[0])} />;
+
   if (stage === "idle") {
     return (
       <section className="card flex flex-col gap-2 p-4">
-        <input ref={file} type="file" accept="image/*" capture="environment" hidden onChange={(e) => void onPhoto(e.target.files?.[0])} />
+        {picker}
         <button type="button" disabled={disabled} onClick={() => file.current?.click()} className="btn btn-secondary">
           {t("Compare with delivery note")}
         </button>
@@ -149,12 +175,14 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
   if (stage === "review" && reading) {
     return (
       <section className="card flex flex-col gap-3 p-4">
+        {picker}
         <h2 className="font-semibold">{t("Package IDs read from the note")}</h2>
         <p className="text-sm text-muted">
           {t("Check the numbers against the paper and fix any mistake. One ID per line.")}
           {reading.total !== null && <> {t(`The note says ${reading.total} colli.`)}</>}
           {reading.supplier && <> {reading.supplier}.</>}
         </p>
+        {pages > 1 && added !== null && <p className="text-sm font-medium text-accent">{t(`${pages} pages read. ${added} new IDs from the last page.`)}</p>}
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -163,7 +191,18 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
           autoCapitalize="characters"
           className="input font-mono text-sm"
         />
-        {error && <p role="alert" className="alert alert-error text-sm">{t(error)}</p>}
+        {error && <p role="alert" className="alert alert-error text-sm">{t(error)}{why && <><br /><span className="opacity-80">{t("The reader saw")}: {why}</span></>}</p>}
+        <button
+          type="button"
+          disabled={pages >= MAX_PAGES}
+          onClick={() => {
+            adding.current = true;
+            file.current?.click();
+          }}
+          className="btn btn-secondary btn-sm self-start"
+        >
+          {t("Add another page")}
+        </button>
         <div className="flex gap-2">
           <button type="button" onClick={() => void compare()} className="btn btn-primary">{t("Compare")}</button>
           <button type="button" onClick={close} className="btn btn-secondary">{t("Cancel")}</button>

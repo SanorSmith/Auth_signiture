@@ -297,6 +297,7 @@ internal val SHARED_SV: Map<String, String> = mapOf(
     "Rules" to "Regler",
     "Settings" to "Inställningar",
     "The reader saw" to "Läsaren såg",
+    "Add another page" to "Lägg till en sida",
     "Remembered rules" to "Sparade regler",
     "Forget all" to "Glöm alla",
     "Forget" to "Glöm",

@@ -92,6 +92,9 @@ fun NoteCompareSection(enabled: Boolean) {
     var text by remember { mutableStateOf("") }
     var result by remember { mutableStateOf<NoteComparison?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var pages by remember { mutableStateOf(0) }
+    var added by remember { mutableStateOf<Int?>(null) }
+    var addingNext by remember { mutableStateOf(false) }
 
     val photoFile = remember { File(context.cacheDir, "delivery-note.jpg") }
     val photoUri: Uri = remember { FileProvider.getUriForFile(context, "${context.packageName}.files", photoFile) }
@@ -102,6 +105,8 @@ fun NoteCompareSection(enabled: Boolean) {
         text = ""
         result = null
         error = null
+        pages = 0
+        added = null
     }
 
     // Leaving the screen removes everything that was read, and any photo still in the cache.
@@ -115,6 +120,10 @@ fun NoteCompareSection(enabled: Boolean) {
     }
 
     fun send() {
+        // A page added to what was already read keeps the list; a first photo starts a new one.
+        val more = addingNext
+        addingNext = false
+        val back = if (more) Stage.Review else Stage.Idle
         stage = Stage.Reading
         error = null
         scope.launch {
@@ -124,20 +133,32 @@ fun NoteCompareSection(enabled: Boolean) {
                 val read = container.api.counterNoteRead(image)
                 if (!read.legible || read.ids.isEmpty()) {
                     error = "No package IDs could be read from this photo. Take a clearer, straight-on photo of the note." + (read.comment?.let { "\n" + it } ?: "")
-                    stage = Stage.Idle
+                    stage = back
                     container.signal(Tone.Error)
+                } else if (more) {
+                    val have = text.split(Regex("[\\s,;]+")).filter { it.isNotBlank() }
+                    val known = have.map { it.uppercase().filter(Char::isLetterOrDigit) }.toSet()
+                    val fresh = read.ids.filter { it.uppercase().filter(Char::isLetterOrDigit) !in known }
+                    text = (have + fresh).joinToString("\n")
+                    pages += 1
+                    added = fresh.size
+                    // Totals on separate pages are often subtotals, so the note's total is not used for several pages.
+                    reading = (reading ?: read).copy(total = null)
+                    stage = Stage.Review
                 } else {
                     reading = read
                     text = read.ids.joinToString("\n")
+                    pages = 1
+                    added = null
                     stage = Stage.Review
                 }
             } catch (e: ApiException) {
                 if (e.unauthorized) container.signOut() else error = e.message
-                stage = Stage.Idle
+                stage = back
                 container.signal(Tone.Error)
             } catch (e: Exception) {
                 error = "Could not read the delivery note. Try again."
-                stage = Stage.Idle
+                stage = back
             } finally {
                 runCatching { photoFile.delete() }
             }
@@ -193,6 +214,7 @@ fun NoteCompareSection(enabled: Boolean) {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Check the numbers against the paper and fix any mistake. One ID per line.", style = MaterialTheme.typography.bodyMedium)
                     read?.total?.let { Text("The note says $it colli.", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium) }
+                    if (pages > 1 && added != null) Text("$pages pages read. $added new IDs from the last page.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
                     OutlinedTextField(
                         value = text,
                         onValueChange = { text = it.uppercase() },
@@ -200,6 +222,15 @@ fun NoteCompareSection(enabled: Boolean) {
                         modifier = Modifier.fillMaxWidth().heightIn(min = 140.dp, max = 320.dp),
                     )
                     error?.let { ErrorNote(it) }
+                    OutlinedButton(
+                        onClick = {
+                            addingNext = true
+                            runCatching { photoFile.delete() }
+                            camera.launch(photoUri)
+                        },
+                        enabled = pages < 10,
+                        shape = RoundedCornerShape(10.dp),
+                    ) { Text("Add another page") }
                 }
             },
             confirmButton = { Button(onClick = { compare() }) { Text("Compare") } },

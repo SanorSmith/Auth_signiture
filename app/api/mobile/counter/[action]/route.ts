@@ -26,7 +26,7 @@ export const maxDuration = 60;
 
 const MAX_IMAGE_CHARS = 4_000_000; // base64 text, about 3 MB of image
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const NOTE_READS_PER_WINDOW = 20; // per person, per 15 minutes: each one costs money
+const NOTE_READS_PER_WINDOW = 40; // per person, per 15 minutes (one per page): each one costs money
 
 type Ctx = { params: Promise<{ action: string }> };
 
