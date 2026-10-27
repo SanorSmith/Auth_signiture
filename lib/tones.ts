@@ -15,7 +15,11 @@ export type ToneKind =
   | "missing"
   | "error"
   | "done"
-  | "deleted";
+  | "deleted"
+  | "counted"
+  | "duplicate"
+  | "mismatch"
+  | "finished";
 
 type Voice = { f: number; at: number; dur: number; peak: number; type?: OscillatorType; warm?: boolean; bell?: boolean };
 
@@ -80,6 +84,26 @@ const SCORES: Record<ToneKind, Voice[]> = {
     { f: 392, at: 0, dur: 0.18, peak: 0.18, type: "triangle" },
     { f: 261.63, at: 0.12, dur: 0.4, peak: 0.18, type: "triangle" },
   ],
+  // Colli counter. A quick tick for every package counted, so fast scanning stays quick.
+  counted: [{ f: 1568, at: 0, dur: 0.09, peak: 0.16 }],
+  // The same package scanned twice: two short low beeps.
+  duplicate: [
+    { f: 330, at: 0, dur: 0.14, peak: 0.2, type: "triangle" },
+    { f: 330, at: 0.22, dur: 0.14, peak: 0.2, type: "triangle" },
+  ],
+  // A package that does not belong to the shipment: a siren-like alert, about 2 seconds.
+  mismatch: [
+    { f: 880, at: 0, dur: 0.4, peak: 0.1, type: "sawtooth" },
+    { f: 622.25, at: 0.45, dur: 0.4, peak: 0.1, type: "sawtooth" },
+    { f: 880, at: 0.9, dur: 0.4, peak: 0.1, type: "sawtooth" },
+    { f: 622.25, at: 1.35, dur: 0.55, peak: 0.1, type: "sawtooth" },
+  ],
+  // The count is finished and saved.
+  finished: [
+    { f: 523.25, at: 0, dur: 0.5, peak: 0.18, bell: true },
+    { f: 659.25, at: 0.14, dur: 0.5, peak: 0.18, bell: true },
+    { f: 783.99, at: 0.28, dur: 0.9, peak: 0.18, bell: true },
+  ],
 };
 
 // How the phone vibrates for each tone.
@@ -96,6 +120,10 @@ const VIBRATION: Record<ToneKind, number[]> = {
   error: [200],
   done: [40],
   deleted: [80],
+  counted: [30],
+  duplicate: [80, 60, 80],
+  mismatch: [300, 120, 300, 120, 300],
+  finished: [100, 60, 200],
 };
 
 // Length of each tone in seconds (when its last note has faded out).
@@ -122,6 +150,10 @@ export const ACTION_TONES: ToneInfo[] = [
   { kind: "missing", label: "Not found", hint: "No code for that number yet", needs: "monitor" },
   { kind: "done", label: "Done", hint: "An action went through" },
   { kind: "deleted", label: "Denied or removed", hint: "A request or user was denied, removed or deleted" },
+  { kind: "counted", label: "Package counted", hint: "A package was added to the count", needs: "colli_counter" },
+  { kind: "duplicate", label: "Package already counted", hint: "The same package was scanned twice", needs: "colli_counter" },
+  { kind: "mismatch", label: "Wrong shipment", hint: "The package does not belong to this shipment", needs: "colli_counter" },
+  { kind: "finished", label: "Count finished", hint: "The shipment count was saved", needs: "colli_counter" },
   { kind: "error", label: "Error", hint: "Something was not accepted" },
 ];
 
@@ -239,7 +271,9 @@ const lastPlayed = new Map<ToneKind, number>();
 
 export async function signal(kind: ToneKind): Promise<boolean> {
   const now = Date.now();
-  if (now - (lastPlayed.get(kind) ?? 0) < 4000 && kind !== "error") return true;
+  // Scan results and errors always sound: fast scanning means the same tone again within seconds.
+  const always = kind === "error" || kind === "counted" || kind === "duplicate" || kind === "mismatch";
+  if (!always && now - (lastPlayed.get(kind) ?? 0) < 4000) return true;
   lastPlayed.set(kind, now);
   try {
     navigator.vibrate?.(VIBRATION[kind]);

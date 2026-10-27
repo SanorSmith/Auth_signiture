@@ -25,6 +25,7 @@ export async function Header({ email, perms }: { email: string; perms: Permissio
           {perms.includes("manage_requests") && <NavLink href="/admin" exact>{t("Requests")}</NavLink>}
           {perms.includes("request") && <NavLink href="/client" exact>{t("Scan")}</NavLink>}
           {perms.includes("monitor") && <NavLink href="/monitor" exact>{t("Monitor")}</NavLink>}
+          {perms.includes("colli_counter") && <NavLink href="/counter">{t("Colli counter")}</NavLink>}
           {canManageUsers(perms) && (
             <NavLink href="/admin/users" exact>
               {t("Users")}
