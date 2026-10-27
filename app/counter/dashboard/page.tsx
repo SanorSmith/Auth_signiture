@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getT } from "@/lib/lang";
 import { addDays, counterStats, parseRange, previousRange, todayStockholm, type Stats, type Unit } from "@/lib/counter";
 import type { T } from "@/lib/i18n";
-import { requirePermission } from "@/lib/session";
+import { requireAdmin } from "@/lib/session";
 import { Shell } from "../../shell";
 import { CounterTabs } from "../counter-tabs";
 
@@ -66,7 +66,7 @@ function Chart({ title, a, b, pick, t }: { title: string; a: Stats; b: Stats | n
 }
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<Search> }) {
-  const s = await requirePermission("colli_counter");
+  const s = await requireAdmin();
   const t = await getT();
   const q = await searchParams;
 

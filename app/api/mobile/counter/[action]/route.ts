@@ -36,6 +36,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   const { action } = await params;
   if (action === "state") return json(await counterState(me.uid));
   if (action === "stats") {
+    if (!me.isAdmin) return reply({ error: "Not allowed" }, 403);
     const q = req.nextUrl.searchParams;
     const range = parseRange({ unit: q.get("unit"), from: q.get("from"), to: q.get("to") });
     const onlyMine = q.get("mine") === "1" ? me.uid : null;

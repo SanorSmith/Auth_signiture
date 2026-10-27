@@ -25,11 +25,13 @@ private data class Voice(
     val wave: Wave = Wave.Sine,
     val warm: Boolean = false,
     val bell: Boolean = false,
+    val pluck: Boolean = false,
+    val rich: Boolean = false,
 )
 
 /**
- * Every notification and action has its own melody. Notifications from other people last 2 to 3
- * seconds; the sounds that confirm your own action are short so scanning stays quick.
+ * Every notification and action has its own melody. Notifications from other people last about a
+ * second; the sounds that confirm your own action are short so scanning stays quick.
  */
 enum class Tone(val key: String, val label: String, val hint: String, val vibration: LongArray, val notification: Boolean) {
     NewRequest("new_request", "New request", "A client asked for a code", longArrayOf(180, 90, 180), true),
@@ -61,43 +63,39 @@ object Tones {
     private const val LOUDNESS = 2.2f
 
     private val scores: Map<Tone, List<Voice>> = mapOf(
-        // A bright rising chime: E5, A5, C#6.
+        // New request (for the admin): two bright bell notes going up, E5 then B5.
         Tone.NewRequest to listOf(
-            Voice(659.25, 0f, 1.4f, 0.22f, warm = true),
-            Voice(880.0, 0.22f, 1.6f, 0.22f, warm = true),
-            Voice(1108.73, 0.44f, 2.2f, 0.22f, warm = true),
+            Voice(659.25, 0f, 0.6f, 0.24f, bell = true, pluck = true, rich = true),
+            Voice(987.77, 0.17f, 0.85f, 0.26f, bell = true, pluck = true, rich = true),
         ),
-        // An attention triple pulse that settles on a held note.
+        // Password reset: three quick taps climbing, G5 B5 D6, like a knock.
         Tone.ResetRequested to listOf(
-            Voice(880.0, 0f, 0.25f, 0.18f, Wave.Triangle),
-            Voice(880.0, 0.35f, 0.25f, 0.18f, Wave.Triangle),
-            Voice(880.0, 0.7f, 0.25f, 0.18f, Wave.Triangle),
-            Voice(659.25, 1.1f, 1.5f, 0.2f, warm = true),
+            Voice(783.99, 0f, 0.3f, 0.22f, pluck = true, rich = true),
+            Voice(987.77, 0.1f, 0.3f, 0.22f, pluck = true, rich = true),
+            Voice(1174.66, 0.2f, 0.7f, 0.24f, bell = true, pluck = true, rich = true),
         ),
-        // A happy bell arpeggio: C5, E5, G5, C6.
+        // Code ready (for the client): a fast happy sparkle, C6 E6 G6.
         Tone.CodeIssued to listOf(
-            Voice(523.25, 0f, 1.0f, 0.2f, bell = true),
-            Voice(659.25, 0.18f, 1.1f, 0.2f, bell = true),
-            Voice(783.99, 0.36f, 1.2f, 0.2f, bell = true),
-            Voice(1046.5, 0.54f, 1.9f, 0.2f, bell = true),
+            Voice(1046.5, 0f, 0.4f, 0.2f, bell = true, pluck = true, rich = true),
+            Voice(1318.5, 0.09f, 0.4f, 0.2f, bell = true, pluck = true, rich = true),
+            Voice(1568.0, 0.18f, 0.85f, 0.22f, bell = true, pluck = true, rich = true),
         ),
-        // Two soft falling notes.
+        // Denied: two soft notes falling, A4 then E4. Gentle, not alarming.
         Tone.RequestDenied to listOf(
-            Voice(440.0, 0f, 1.2f, 0.2f, Wave.Triangle),
-            Voice(329.63, 0.35f, 1.85f, 0.2f, Wave.Triangle),
+            Voice(440.0, 0f, 0.45f, 0.24f, Wave.Triangle, pluck = true, rich = true),
+            Voice(329.63, 0.2f, 0.7f, 0.24f, Wave.Triangle, pluck = true, rich = true),
         ),
-        // Three descending steps, like something being taken away.
+        // Removed: three short steps down, G4 D4 A3.
         Tone.RequestRemoved to listOf(
-            Voice(392.0, 0f, 0.9f, 0.22f),
-            Voice(293.66, 0.5f, 0.9f, 0.22f),
-            Voice(196.0, 1.0f, 1.15f, 0.22f),
+            Voice(392.0, 0f, 0.3f, 0.24f, Wave.Triangle, pluck = true, rich = true),
+            Voice(293.66, 0.14f, 0.3f, 0.24f, Wave.Triangle, pluck = true, rich = true),
+            Voice(220.0, 0.28f, 0.6f, 0.26f, Wave.Triangle, pluck = true, rich = true),
         ),
-        // A gentle chord that blossoms: C5, E5, G5, B5.
+        // Access changed: a soft shimmer, E5 G#5 B5 almost together.
         Tone.AccessChanged to listOf(
-            Voice(523.25, 0f, 2.0f, 0.12f),
-            Voice(659.25, 0.25f, 2.0f, 0.12f),
-            Voice(783.99, 0.5f, 2.0f, 0.12f),
-            Voice(987.77, 0.75f, 2.05f, 0.12f),
+            Voice(659.25, 0f, 0.8f, 0.16f, bell = true, pluck = true, rich = true),
+            Voice(830.61, 0.05f, 0.8f, 0.16f, bell = true, pluck = true, rich = true),
+            Voice(987.77, 0.1f, 0.9f, 0.16f, bell = true, pluck = true, rich = true),
         ),
         Tone.Sent to listOf(Voice(783.99, 0f, 0.18f, 0.14f), Voice(1046.5, 0.12f, 0.3f, 0.14f)),
         Tone.Found to listOf(Voice(1318.5, 0f, 0.8f, 0.13f, warm = true)),
@@ -136,8 +134,12 @@ object Tones {
      * Envelope: rises in 20 ms, settles, then fades over most of the note's length, so a 2.5 second
      * tone is audible for about 2.5 seconds (a plain exponential fade is inaudible after the first moments).
      */
-    private fun envelope(t: Float, dur: Float, top: Float): Float {
+    private fun envelope(t: Float, dur: Float, top: Float, pluck: Boolean = false): Float {
         if (t < 0f || t > dur) return 0f
+        if (pluck) {
+            if (t < 0.005f) return top * (t / 0.005f)
+            return top * (0.0001f / top).pow((t - 0.005f) / (dur - 0.005f))
+        }
         if (t < 0.02f) return top * (t / 0.02f)
         fun exp(a: Float, b: Float, from: Float, to: Float): Float = a * (b / a).pow((t - from) / (to - from))
         return if (dur > 0.3f) {
@@ -151,7 +153,7 @@ object Tones {
         }
     }
 
-    private fun addNote(mix: FloatArray, freq: Double, at: Float, dur: Float, peak: Float, kind: Wave) {
+    private fun addNote(mix: FloatArray, freq: Double, at: Float, dur: Float, peak: Float, kind: Wave, pluck: Boolean = false, cents: Double = 0.0) {
         val top = peak * LOUDNESS
         val first = (at * RATE).toInt()
         val count = (dur * RATE).toInt()
@@ -159,20 +161,33 @@ object Tones {
             val index = first + i
             if (index >= mix.size) break
             val t = i / RATE.toFloat()
-            mix[index] += (envelope(t, dur, top) * wave(kind, freq * t)).toFloat()
+            mix[index] += (envelope(t, dur, top, pluck) * wave(kind, freq * (if (cents != 0.0) 2.0.pow(cents / 1200.0) else 1.0) * t)).toFloat()
         }
     }
 
     /** The tone as 16-bit mono samples. Everything passes a soft limiter so the louder sound never distorts. */
     fun render(tone: Tone): ShortArray = cache.getOrPut(tone) {
         val voices = scores.getValue(tone)
-        val mix = FloatArray(((seconds(tone) + 0.1f) * RATE).toInt())
+        // A little room at the end for the echo to die away.
+        val mix = FloatArray(((seconds(tone) + 0.1f + 0.45f) * RATE).toInt())
         for (v in voices) {
-            addNote(mix, v.f, v.at, v.dur, v.peak, v.wave)
-            if (v.warm) addNote(mix, v.f * 2, v.at, v.dur * 0.6f, v.peak * 0.2f, Wave.Sine)
+            addNote(mix, v.f, v.at, v.dur, v.peak, v.wave, v.pluck)
+            // A second voice a few cents sharp makes the note fuller, less like a plain test tone.
+            if (v.rich) addNote(mix, v.f, v.at, v.dur, v.peak * 0.6f, v.wave, v.pluck, 5.0)
+            if (v.warm) addNote(mix, v.f * 2, v.at, v.dur * 0.6f, v.peak * 0.2f, Wave.Sine, v.pluck)
             if (v.bell) {
-                addNote(mix, v.f * 2.76, v.at, v.dur * 0.55f, v.peak * 0.3f, Wave.Sine)
-                addNote(mix, v.f * 5.4, v.at, v.dur * 0.3f, v.peak * 0.12f, Wave.Sine)
+                addNote(mix, v.f * 2.76, v.at, v.dur * 0.55f, v.peak * 0.3f, Wave.Sine, v.pluck)
+                addNote(mix, v.f * 5.4, v.at, v.dur * 0.3f, v.peak * 0.12f, Wave.Sine, v.pluck)
+            }
+        }
+        // A short soft echo (about a tenth of a second, fading) so the notes ring instead of stopping dead.
+        if (tone.notification) {
+            val d1 = (0.11f * RATE).toInt()
+            val d2 = (0.22f * RATE).toInt()
+            val dry = mix.copyOf()
+            for (i in mix.indices) {
+                if (i >= d1) mix[i] += dry[i - d1] * 0.22f
+                if (i >= d2) mix[i] += dry[i - d2] * 0.1f
             }
         }
         ShortArray(mix.size) { (tanh(mix[it].toDouble()) * 0.95 * Short.MAX_VALUE).toInt().toShort() }

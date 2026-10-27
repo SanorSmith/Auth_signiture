@@ -6,11 +6,13 @@ export async function CounterTabs({ current, isAdmin = false }: { current: "coun
   const t = await getT();
   const tab = (active: boolean) =>
     `rounded-md px-3 py-1.5 text-sm font-medium transition ${active ? "bg-accent-soft text-accent" : "text-muted hover:bg-page hover:text-ink"}`;
+  // Statistics and settings are for administrators; everyone else only counts.
+  if (!isAdmin) return null;
   return (
     <div className="mb-4 flex gap-1">
       <Link href="/counter" className={tab(current === "count")}>{t("Count")}</Link>
       <Link href="/counter/dashboard" className={tab(current === "stats")}>{t("Statistics")}</Link>
-      {isAdmin && <Link href="/counter/rules" className={tab(current === "rules")}>{t("Settings")}</Link>}
+      <Link href="/counter/rules" className={tab(current === "rules")}>{t("Settings")}</Link>
     </div>
   );
 }

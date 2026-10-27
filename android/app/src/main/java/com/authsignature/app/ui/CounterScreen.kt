@@ -52,14 +52,17 @@ import kotlinx.coroutines.launch
 
 /** The Colli counter tab: counting, and the statistics. */
 @Composable
-fun CounterTab() {
+fun CounterTab(isAdmin: Boolean) {
     var page by rememberSaveable { mutableStateOf(0) }
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = page == 0, onClick = { page = 0 }, label = { Text("Count") })
-            FilterChip(selected = page == 1, onClick = { page = 1 }, label = { Text("Statistics") })
+        // Statistics are for administrators; everyone else only counts.
+        if (isAdmin) {
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = page == 0, onClick = { page = 0 }, label = { Text("Count") })
+                FilterChip(selected = page == 1, onClick = { page = 1 }, label = { Text("Statistics") })
+            }
         }
-        if (page == 0) CounterScreen() else CounterStatsScreen()
+        if (page == 0 || !isAdmin) CounterScreen() else CounterStatsScreen()
     }
 }
 

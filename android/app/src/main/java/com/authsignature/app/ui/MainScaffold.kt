@@ -197,7 +197,7 @@ fun MainScaffold(user: User, openUrl: String?, onUrlHandled: () -> Unit) {
                 Tab.Requests -> AdminScreen()
                 Tab.Scan -> ClientScreen()
                 Tab.Monitor -> MonitorScreen()
-                Tab.Counter -> CounterTab()
+                Tab.Counter -> CounterTab(isAdmin = user.isAdmin)
                 Tab.Users -> UsersScreen()
                 Tab.Account -> AccountScreen(user)
             }

@@ -48,6 +48,22 @@ const other = `ZQX${stamp}999990017`;
 check("a user without the permission is refused", (await call("GET", `${C}/state`, tm)).status === 403);
 check("no token is refused", (await call("GET", `${C}/state`, null)).status === 401);
 
+// A person who may count but is not an administrator.
+const plain = { email: `qa-plain-${stamp}@example.com`, password: `Pl-${stamp}-Aa1!x` };
+const made = await call("POST", "/api/mobile/users/create", ta, { email: plain.email, password: plain.password, perms: ["colli_counter"] });
+check("a non-administrator with the counter permission is created", made.status === 200, made);
+let tp = await login(plain);
+const changedPw = await call("POST", "/api/mobile/password", tp, { current: plain.password, next: `${plain.password}-new`, confirm: `${plain.password}-new` });
+tp = changedPw.body?.token;
+check("they can count", (await call("GET", `${C}/state`, tp)).status === 200);
+check("but the statistics are refused for them", (await call("GET", `${C}/stats?unit=day`, tp)).status === 403);
+check("and the delivery note setting too", (await call("POST", `${C}/note-setting`, tp, { on: false })).status === 403);
+const page = (token, path) => fetch(BASE + path, { headers: { authorization: `Bearer ${token}` }, redirect: "manual" }).then((r) => r.status);
+check("the statistics page sends a non-administrator away", [307, 308].includes(await page(tp, "/counter/dashboard")), await page(tp, "/counter/dashboard"));
+check("and the settings page too", [307, 308].includes(await page(tp, "/counter/rules")));
+check("an administrator opens the statistics page", (await page(ta, "/counter/dashboard")) === 200);
+check("an administrator still gets the statistics", (await call("GET", `${C}/stats?unit=day`, ta)).status === 200);
+
 const statsBefore = (await call("GET", `${C}/stats?unit=day&compare=0`, ta)).body.current;
 const mineBefore = (await call("GET", `${C}/stats?unit=day&compare=0&mine=1`, tb)).body.current;
 
@@ -180,7 +196,8 @@ const sv = await call("POST", `${C}/finish`, ta, null, "sv");
 check("messages come back in Swedish", sv.body?.error === "Inget har räknats ännu", sv.body);
 
 if (sql) {
-  await sql`DELETE FROM counter_results WHERE user_email IN (${A.email}, ${B.email})`;
+  await sql`DELETE FROM users WHERE email = ${plain.email}`;
+  await sql`DELETE FROM counter_results WHERE user_email IN (${A.email}, ${B.email}, ${plain.email})`;
   console.log("cleaned up the saved test results");
 }
 if (failures) {

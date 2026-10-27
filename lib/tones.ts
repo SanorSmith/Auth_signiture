@@ -1,5 +1,5 @@
 // Tones for every notification and action in the app, synthesised with the Web Audio API so no audio
-// files are needed. Notifications from other people last 2 to 3 seconds and each sounds different;
+// files are needed. Notifications from other people last about a second and each sounds different;
 // the sounds that confirm your own action are short so scanning stays quick.
 import type { Permission } from "./permissions";
 
@@ -21,47 +21,43 @@ export type ToneKind =
   | "mismatch"
   | "finished";
 
-type Voice = { f: number; at: number; dur: number; peak: number; type?: OscillatorType; warm?: boolean; bell?: boolean };
+type Voice = { f: number; at: number; dur: number; peak: number; type?: OscillatorType; warm?: boolean; bell?: boolean; pluck?: boolean; rich?: boolean };
 
 // A score is a few notes; `warm` adds a quiet octave above, `bell` the inharmonic partial of a struck bell.
 const SCORES: Record<ToneKind, Voice[]> = {
-  // A bright rising chime: E5, A5, C#6.
+  // New request (for the admin): two bright bell notes going up, E5 then B5.
   new_request: [
-    { f: 659.25, at: 0, dur: 1.4, peak: 0.22, warm: true },
-    { f: 880, at: 0.22, dur: 1.6, peak: 0.22, warm: true },
-    { f: 1108.73, at: 0.44, dur: 2.2, peak: 0.22, warm: true },
+    { f: 659.25, at: 0, dur: 0.6, peak: 0.24, bell: true, pluck: true, rich: true },
+    { f: 987.77, at: 0.17, dur: 0.85, peak: 0.26, bell: true, pluck: true, rich: true },
   ],
-  // An attention triple pulse that settles on a held note.
+  // Password reset: three quick taps climbing, G5 B5 D6, like a knock.
   reset_requested: [
-    { f: 880, at: 0, dur: 0.25, peak: 0.18, type: "triangle" },
-    { f: 880, at: 0.35, dur: 0.25, peak: 0.18, type: "triangle" },
-    { f: 880, at: 0.7, dur: 0.25, peak: 0.18, type: "triangle" },
-    { f: 659.25, at: 1.1, dur: 1.5, peak: 0.2, warm: true },
+    { f: 783.99, at: 0, dur: 0.3, peak: 0.22, pluck: true, rich: true },
+    { f: 987.77, at: 0.1, dur: 0.3, peak: 0.22, pluck: true, rich: true },
+    { f: 1174.66, at: 0.2, dur: 0.7, peak: 0.24, bell: true, pluck: true, rich: true },
   ],
-  // A happy bell arpeggio: C5, E5, G5, C6.
+  // Code ready (for the client): a fast happy sparkle, C6 E6 G6.
   code_issued: [
-    { f: 523.25, at: 0, dur: 1.0, peak: 0.2, bell: true },
-    { f: 659.25, at: 0.18, dur: 1.1, peak: 0.2, bell: true },
-    { f: 783.99, at: 0.36, dur: 1.2, peak: 0.2, bell: true },
-    { f: 1046.5, at: 0.54, dur: 1.9, peak: 0.2, bell: true },
+    { f: 1046.5, at: 0, dur: 0.4, peak: 0.2, bell: true, pluck: true, rich: true },
+    { f: 1318.5, at: 0.09, dur: 0.4, peak: 0.2, bell: true, pluck: true, rich: true },
+    { f: 1568, at: 0.18, dur: 0.85, peak: 0.22, bell: true, pluck: true, rich: true },
   ],
-  // Two soft falling notes.
+  // Denied: two soft notes falling, A4 then E4. Gentle, not alarming.
   request_denied: [
-    { f: 440, at: 0, dur: 1.2, peak: 0.2, type: "triangle" },
-    { f: 329.63, at: 0.35, dur: 1.85, peak: 0.2, type: "triangle" },
+    { f: 440, at: 0, dur: 0.45, peak: 0.24, type: "triangle", pluck: true, rich: true },
+    { f: 329.63, at: 0.2, dur: 0.7, peak: 0.24, type: "triangle", pluck: true, rich: true },
   ],
-  // Three descending steps, like something being taken away.
+  // Removed: three short steps down, G4 D4 A3.
   request_removed: [
-    { f: 392, at: 0, dur: 0.9, peak: 0.22 },
-    { f: 293.66, at: 0.5, dur: 0.9, peak: 0.22 },
-    { f: 196, at: 1.0, dur: 1.15, peak: 0.22 },
+    { f: 392, at: 0, dur: 0.3, peak: 0.24, type: "triangle", pluck: true, rich: true },
+    { f: 293.66, at: 0.14, dur: 0.3, peak: 0.24, type: "triangle", pluck: true, rich: true },
+    { f: 220, at: 0.28, dur: 0.6, peak: 0.26, type: "triangle", pluck: true, rich: true },
   ],
-  // A gentle chord that blossoms: C5, E5, G5, B5.
+  // Access changed: a soft shimmer, E5 G#5 B5 almost together.
   access_changed: [
-    { f: 523.25, at: 0, dur: 2.0, peak: 0.12 },
-    { f: 659.25, at: 0.25, dur: 2.0, peak: 0.12 },
-    { f: 783.99, at: 0.5, dur: 2.0, peak: 0.12 },
-    { f: 987.77, at: 0.75, dur: 2.05, peak: 0.12 },
+    { f: 659.25, at: 0, dur: 0.8, peak: 0.16, bell: true, pluck: true, rich: true },
+    { f: 830.61, at: 0.05, dur: 0.8, peak: 0.16, bell: true, pluck: true, rich: true },
+    { f: 987.77, at: 0.1, dur: 0.9, peak: 0.16, bell: true, pluck: true, rich: true },
   ],
   // Short confirmations of your own actions.
   sent: [
@@ -133,7 +129,7 @@ export const isToneKind = (value: string): value is ToneKind => value in SCORES;
 
 export type ToneInfo = { kind: ToneKind; label: string; hint: string; needs?: Permission };
 
-// Notifications from other people: 2 to 3 seconds, each its own melody.
+// Notifications from other people: short (about a second), each its own little tune.
 export const NOTIFICATION_TONES: ToneInfo[] = [
   { kind: "new_request", label: "New request", hint: "A client asked for a code", needs: "manage_requests" },
   { kind: "reset_requested", label: "Password reset", hint: "Someone asked for a password reset", needs: "reset_passwords" },
@@ -191,7 +187,22 @@ function ensureContext(): AudioContext | null {
     limiter.attack.value = 0.003;
     limiter.release.value = 0.25;
     limiter.connect(ctx.destination);
-    master = limiter;
+    // A short, soft echo (about a tenth of a second, fading) gives the notes a room to ring in.
+    const bus = ctx.createGain();
+    const send = ctx.createGain();
+    send.gain.value = 0.22;
+    const delay = ctx.createDelay(0.5);
+    delay.delayTime.value = 0.11;
+    const feedback = ctx.createGain();
+    feedback.gain.value = 0.3;
+    const soften = ctx.createBiquadFilter();
+    soften.type = "lowpass";
+    soften.frequency.value = 3200;
+    bus.connect(limiter);
+    bus.connect(send).connect(delay);
+    delay.connect(soften).connect(feedback).connect(delay);
+    soften.connect(limiter);
+    master = bus;
   }
   return ctx;
 }
@@ -222,23 +233,29 @@ export async function unlockAudio(): Promise<boolean> {
 // Phone speakers are small, so the tones are about twice as loud as the raw notes in the scores.
 const LOUDNESS = 2.2;
 
-// One note. It rises in 20 ms, settles, then fades over most of its length, so a 2.5 second tone is
-// audible for about 2.5 seconds (a plain exponential fade to silence is inaudible after the first moments).
-function note(c: BaseAudioContext, out: AudioNode, freq: number, start: number, duration: number, peak: number, type: OscillatorType) {
+// One note. A sustained note rises in 20 ms, settles, then fades over most of its length. A struck
+// ("pluck") note jumps to full level in 5 ms and dies away like a bell or a marimba bar.
+function note(c: BaseAudioContext, out: AudioNode, freq: number, start: number, duration: number, peak: number, type: OscillatorType, pluck = false, detune = 0) {
   const osc = c.createOscillator();
   const gain = c.createGain();
   osc.type = type;
   osc.frequency.value = freq;
+  if (detune) osc.detune.value = detune;
   const top = peak * LOUDNESS;
   const g = gain.gain;
   g.setValueAtTime(0.0001, start);
-  g.linearRampToValueAtTime(top, start + 0.02);
-  if (duration > 0.3) {
-    g.exponentialRampToValueAtTime(top * 0.4, start + duration * 0.45);
-    g.exponentialRampToValueAtTime(top * 0.06, start + duration - 0.12);
-    g.linearRampToValueAtTime(0.0001, start + duration);
-  } else {
+  if (pluck) {
+    g.linearRampToValueAtTime(top, start + 0.005);
     g.exponentialRampToValueAtTime(0.0001, start + duration);
+  } else {
+    g.linearRampToValueAtTime(top, start + 0.02);
+    if (duration > 0.3) {
+      g.exponentialRampToValueAtTime(top * 0.4, start + duration * 0.45);
+      g.exponentialRampToValueAtTime(top * 0.06, start + duration - 0.12);
+      g.linearRampToValueAtTime(0.0001, start + duration);
+    } else {
+      g.exponentialRampToValueAtTime(0.0001, start + duration);
+    }
   }
   osc.connect(gain).connect(out);
   osc.start(start);
@@ -248,11 +265,14 @@ function note(c: BaseAudioContext, out: AudioNode, freq: number, start: number, 
 // Schedules every note of a tone on any audio context (the real one, or an offline one for tests).
 export function scheduleScore(c: BaseAudioContext, out: AudioNode, kind: ToneKind, t: number) {
   for (const v of SCORES[kind]) {
-    note(c, out, v.f, t + v.at, v.dur, v.peak, v.type ?? "sine");
-    if (v.warm) note(c, out, v.f * 2, t + v.at, v.dur * 0.6, v.peak * 0.2, "sine");
+    const wave = v.type ?? "sine";
+    note(c, out, v.f, t + v.at, v.dur, v.peak, wave, v.pluck);
+    // A second voice a few cents sharp makes the note fuller, less like a plain test tone.
+    if (v.rich) note(c, out, v.f, t + v.at, v.dur, v.peak * 0.6, wave, v.pluck, 5);
+    if (v.warm) note(c, out, v.f * 2, t + v.at, v.dur * 0.6, v.peak * 0.2, "sine", v.pluck);
     if (v.bell) {
-      note(c, out, v.f * 2.76, t + v.at, v.dur * 0.55, v.peak * 0.3, "sine");
-      note(c, out, v.f * 5.4, t + v.at, v.dur * 0.3, v.peak * 0.12, "sine");
+      note(c, out, v.f * 2.76, t + v.at, v.dur * 0.55, v.peak * 0.3, "sine", v.pluck);
+      note(c, out, v.f * 5.4, t + v.at, v.dur * 0.3, v.peak * 0.12, "sine", v.pluck);
     }
   }
 }
