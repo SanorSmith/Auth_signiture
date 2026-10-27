@@ -93,8 +93,8 @@ const TOOL = {
         description: "Runs of consecutive package identifiers printed in short form",
         items: { type: "object", properties: { from: { type: "string" }, to: { type: "string" } }, required: ["from", "to"] },
       },
-      total_colli: { type: ["integer", "null"], description: "The total number of colli printed on the note, if any" },
-      supplier: { type: ["string", "null"], description: "The sender or supplier name, if printed" },
+      total_colli: { type: "integer", description: "The total number of colli printed on the note. Leave out if none is printed" },
+      supplier: { type: "string", description: "The sender or supplier name. Leave out if none is printed" },
     },
     required: ["legible", "package_ids"],
   },
@@ -114,13 +114,12 @@ export async function readDeliveryNote(imageBase64: string, mediaType: string): 
         max_tokens: 4096,
         system: SYSTEM,
         tools: [TOOL],
-        tool_choice: { type: "tool", name: TOOL.name },
         messages: [
           {
             role: "user",
             content: [
               { type: "image", source: { type: "base64", media_type: mediaType, data: imageBase64 } },
-              { type: "text", text: "Read the package identifiers on this delivery note." },
+              { type: "text", text: `Read the package identifiers on this delivery note and report them by calling the ${TOOL.name} tool. Do not answer in plain text.` },
             ],
           },
         ],
@@ -130,7 +129,7 @@ export async function readDeliveryNote(imageBase64: string, mediaType: string): 
     if (!res.ok) {
       // Say what went wrong in words an administrator can act on; never log the photo or the key.
       const detail = (await res.json().catch(() => null)) as { error?: { type?: string; message?: string } } | null;
-      console.error(`note-read: the AI service answered ${res.status} ${detail?.error?.type ?? ""}`);
+      console.error(`note-read: the AI service answered ${res.status} ${detail?.error?.type ?? ""}: ${String(detail?.error?.message ?? "").slice(0, 300)}`);
       if (res.status === 401 || res.status === 403) return { error: "The AI key was refused. An administrator must check the key." };
       if (res.status === 404) return { error: "The AI model is not available for this key. An administrator must check the model." };
       if (res.status === 429 || res.status === 529) return { error: "The AI service is busy. Try again in a moment." };
