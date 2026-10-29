@@ -1,5 +1,6 @@
 // Run: npx tsx scripts/test-counter-note.ts
-import { cleanIds, compareSets, expandRange } from "../lib/counter-note";
+import { cleanIds, compareDeliveries, compareSets, expandRange } from "../lib/counter-note";
+import { ruleForCodes } from "../lib/counter-match";
 
 let failures = 0;
 const check = (name: string, ok: boolean, extra?: unknown) => {
@@ -29,6 +30,26 @@ c = compareSets(["A0001", "A0002", "A0003", "A0094"], scanned);
 check("one character off is a possible misread, not missing and extra", c.possible.length === 1 && c.possible[0].note === "A0094" && c.possible[0].scanned === "A0004" && !c.missing.length && !c.extra.length, c);
 c = compareSets(["A0001", "A0002", "B0009"], ["A0001", "A0002", "C7777"]);
 check("two unrelated IDs stay missing and extra", c.missing.join() === "B0009" && c.extra.join() === "C7777" && !c.possible.length, c);
+
+// A note that lists packages of several deliveries.
+const A = (n: number) => `1111AAAA0${String(n).padStart(4, "0")}`;
+const B = (n: number) => `2222BBBB0${String(n).padStart(4, "0")}`;
+const C = (n: number) => `3333CCCC0${String(n).padStart(4, "0")}`;
+const deliveries = [
+  { id: 1, number: 1, codes: [A(1), A(2), A(3)], rule: null },
+  { id: 2, number: 2, codes: [B(1), B(2)], rule: { len: A(1).length, prefix: 9 } },
+];
+let g = compareDeliveries([A(1), A(2), A(3), A(4), B(1), B(2)], deliveries);
+check("each number on the note goes to its own delivery", g.deliveries[0].comparison.matched.length === 3 && g.deliveries[1].comparison.matched.length === 2, g);
+check("a package missing from one delivery is reported for that delivery only", g.deliveries[0].comparison.missing.join() === A(4) && g.deliveries[1].comparison.missing.length === 0, g.deliveries.map((d) => d.comparison.missing));
+check("nothing is reported as extra because of the other delivery", g.deliveries.every((d) => d.comparison.extra.length === 0));
+g = compareDeliveries([A(1), A(2), A(3), B(1), B(2), C(1), C(2), C(3)], deliveries);
+check("numbers of a delivery that was not scanned form their own group", g.unscanned.length === 1 && g.unscanned[0].length === 3, g.unscanned);
+g = compareDeliveries([A(1), A(2)], deliveries);
+check("a delivery with nothing on the note shows its packages as extra", g.deliveries[1].comparison.extra.length === 2 && g.deliveries[0].comparison.extra.join() === A(3), g.deliveries.map((d) => d.comparison.extra));
+
+check("one rule for merged codes keeps the shared beginning", ruleForCodes([A(1), A(2), A(7)])?.prefix === A(1).length - 3, ruleForCodes([A(1), A(2), A(7)]));
+check("merged codes of different lengths have no rule", ruleForCodes([A(1), "ABCDEFGH"]) === null);
 
 if (failures) {
   console.log(`\n${failures} check(s) failed`);

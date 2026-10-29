@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { signal } from "@/lib/tones";
-import type { Comparison } from "@/lib/counter-note";
+import type { Comparison, GroupedComparison } from "@/lib/counter-note";
 import { useT } from "../lang-provider";
 
 type Stage = "idle" | "reading" | "review" | "comparing" | "result";
@@ -40,12 +40,15 @@ async function post<T>(action: string, body: unknown): Promise<{ ok: true; data:
 
 // Compare the scanned packages with the IDs printed on the delivery note. The list the AI reads is
 // only kept in this component: it is cleared when the person closes it, and when the count ends.
-export function NoteCompare({ disabled }: { disabled: boolean }) {
+// With several deliveries in the count, `group` is the delivery this note belongs to (the reader is told what
+// that delivery looks like, and only its packages are compared), or "all" for a note that lists every delivery.
+export function NoteCompare({ disabled, group }: { disabled: boolean; group?: number | "all" }) {
   const t = useT();
   const [stage, setStage] = useState<Stage>("idle");
   const [reading, setReading] = useState<Reading | null>(null);
   const [text, setText] = useState("");
   const [result, setResult] = useState<Comparison | null>(null);
+  const [grouped, setGrouped] = useState<GroupedComparison | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [why, setWhy] = useState<string | null>(null);
   const [pages, setPages] = useState(0);
@@ -59,6 +62,7 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
       setReading(null);
       setText("");
       setResult(null);
+      setGrouped(null);
     },
     [],
   );
@@ -68,6 +72,7 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
     setReading(null);
     setText("");
     setResult(null);
+    setGrouped(null);
     setError(null);
     setPages(0);
     setAdded(null);
@@ -84,7 +89,7 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
     setStage("reading");
     try {
       const image = await shrink(f);
-      const res = await post<Reading>("note-read", { image, mediaType: "image/jpeg" });
+      const res = await post<Reading>("note-read", { image, mediaType: "image/jpeg", group });
       if (!res.ok) {
         setError(res.error);
         setStage(back);
@@ -126,7 +131,21 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
     setError(null);
     setStage("comparing");
     const ids = text.split(/[\s,;]+/).filter(Boolean);
-    const res = await post<Comparison>("note-compare", { ids });
+    if (group === "all") {
+      const res = await post<GroupedComparison>("note-compare", { ids, group });
+      if (!res.ok) {
+        setError(res.error);
+        setStage("review");
+        void signal("error");
+        return;
+      }
+      setGrouped(res.data);
+      setStage("result");
+      const ok = res.data.unscanned.length === 0 && res.data.deliveries.every((d) => !d.comparison.missing.length && !d.comparison.extra.length && !d.comparison.possible.length);
+      void signal(ok ? "finished" : "mismatch");
+      return;
+    }
+    const res = await post<Comparison>("note-compare", { ids, group });
     if (!res.ok) {
       setError(res.error);
       setStage("review");
@@ -156,7 +175,7 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
       <section className="card flex flex-col gap-2 p-4">
         {picker}
         <button type="button" disabled={disabled} onClick={() => file.current?.click()} className="btn btn-secondary">
-          {t("Compare with delivery note")}
+          {group === "all" ? t("Compare with a note that lists all deliveries") : t("Compare with delivery note")}
         </button>
         {error && <p role="alert" className="alert alert-error text-sm">{t(error)}{why && <><br /><span className="opacity-80">{t("The reader saw")}: {why}</span></>}</p>}
       </section>
@@ -207,6 +226,42 @@ export function NoteCompare({ disabled }: { disabled: boolean }) {
           <button type="button" onClick={() => void compare()} className="btn btn-primary">{t("Compare")}</button>
           <button type="button" onClick={close} className="btn btn-secondary">{t("Cancel")}</button>
         </div>
+      </section>
+    );
+  }
+
+  if (stage === "result" && grouped) {
+    const ok = grouped.unscanned.length === 0 && grouped.deliveries.every((d) => !d.comparison.missing.length && !d.comparison.extra.length && !d.comparison.possible.length);
+    return (
+      <section className={`card flex flex-col gap-3 p-4 ${ok ? "border-success/50" : "border-danger/50"}`} role="alert">
+        <h2 className={`text-lg font-semibold ${ok ? "text-success" : "text-danger"}`}>
+          {ok ? t("Everything on the note was scanned") : t("The scan and the note do not match")}
+        </h2>
+        {grouped.deliveries.map((d) => {
+          const c = d.comparison;
+          const fine = !c.missing.length && !c.extra.length && !c.possible.length;
+          return (
+            <div key={d.id} className="rounded-lg border border-line p-3">
+              <p className={`mb-1 text-sm font-semibold ${fine ? "text-success" : "text-danger"}`}>
+                {t("Delivery")} {d.number}: {t(`${c.matched.length} of ${c.noteCount} on the note were scanned.`)}
+              </p>
+              <List title="Missing: on the note, not scanned" items={c.missing} tone="text-danger" />
+              <List title="Extra: scanned, not on the note" items={c.extra} tone="text-warn" />
+              {c.possible.length > 0 && (
+                <ul className="mt-1 rounded-md bg-page p-2 font-mono text-sm">
+                  {c.possible.map((p) => <li key={p.note} className="break-all py-0.5">{t("Note")}: {p.note} · {t("Scanned")}: {p.scanned}</li>)}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+        {grouped.unscanned.map((cluster, i) => (
+          <div key={i} className="rounded-lg border border-danger/50 p-3">
+            <p className="mb-1 text-sm font-semibold text-danger">{t(`A delivery on the note that was not scanned (${cluster.length} packages)`)}</p>
+            <ul className="rounded-md bg-page p-2 font-mono text-sm">{cluster.map((c) => <li key={c} className="break-all py-0.5">{c}</li>)}</ul>
+          </div>
+        ))}
+        <button type="button" onClick={close} className="btn btn-primary">{t("Close")}</button>
       </section>
     );
   }

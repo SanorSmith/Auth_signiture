@@ -64,6 +64,13 @@ check("and the settings page too", [307, 308].includes(await page(tp, "/counter/
 check("an administrator opens the statistics page", (await page(ta, "/counter/dashboard")) === 200);
 check("an administrator still gets the statistics", (await call("GET", `${C}/stats?unit=day`, ta)).status === 200);
 
+// The delivery note comparison can be switched off by an administrator (a real setting in the database).
+// The tests never change it for good: what needs it on is skipped when it is off, and the one test that
+// switches it restores exactly what was there.
+const noteOn = (await call("GET", `${C}/state`, ta)).body.noteCompare === true;
+const settingBefore = sql ? (await sql`SELECT value FROM app_settings WHERE key = 'note_compare'`)[0]?.value : undefined;
+if (!noteOn) console.log("SKIP  the delivery note comparison is switched off here: its checks are skipped");
+
 const statsBefore = (await call("GET", `${C}/stats?unit=day&compare=0`, ta)).body.current;
 const mineBefore = (await call("GET", `${C}/stats?unit=day&compare=0&mine=1`, tb)).body.current;
 
@@ -128,6 +135,7 @@ check("'only me' does not include another person's shipments", mineAfter.shipmen
 const withCompare = (await call("GET", `${C}/stats?unit=week&from=2026-01-01&to=2026-03-31`, ta)).body;
 check("a period can be compared with the one before it", withCompare.compare && withCompare.compare.to === "2025-12-31" && withCompare.current.buckets.length >= 12, withCompare.compare);
 
+if (noteOn) {
 // --- delivery note comparison ------------------------------------------------------------------
 const nz = (n) => `ZQN${stamp}000${String(n).padStart(4, "0")}`;
 check("comparing with nothing counted is refused", (await call("POST", `${C}/note-compare`, ta, { ids: [nz(1)] })).status === 400);
@@ -152,14 +160,18 @@ if (sql) {
     check("compare is refused while it is off", (await call("POST", `${C}/note-compare`, ta, { ids: [nz(1)] })).status === 403);
     check("reading is refused while it is off", (await call("POST", `${C}/note-read`, ta, { image: "x".repeat(200), mediaType: "image/jpeg" })).status === 403);
   } finally {
-    await sql`DELETE FROM app_settings WHERE key = 'note_compare'`;
+    // Put back exactly what was there before.
+    if (settingBefore === undefined) await sql`DELETE FROM app_settings WHERE key = 'note_compare'`;
+    else await sql`INSERT INTO app_settings (key, value) VALUES ('note_compare', ${settingBefore}) ON CONFLICT (key) DO UPDATE SET value = ${settingBefore}`;
   }
-  check("and on again by default", (await call("GET", `${C}/state`, ta)).body.noteCompare === true);
+  check("and back to what it was", (await call("GET", `${C}/state`, ta)).body.noteCompare === true);
 }
 await call("POST", `${C}/finish`, ta);
 if (sql) {
   const left = await sql`SELECT count(*)::int AS n FROM counter_scans s JOIN counter_drafts d ON d.id = s.draft_id WHERE s.code LIKE 'ZQN%'`;
   check("no package ID of the note comparison is left after finishing", left[0].n === 0, left);
+}
+
 }
 
 // --- rule memory: a finished count teaches the next one ----------------------------------------
@@ -189,7 +201,83 @@ check("the remembered rule refuses a package the scans alone would have accepted
 await call("POST", `${C}/cancel`, ta);
 if (sql) {
   await sql`DELETE FROM counter_rules WHERE lead = 'ZQT'`;
-  await sql`DELETE FROM counter_rules WHERE lead IN ('ZQS', 'ZQX', 'ZQN')`;
+  await sql`DELETE FROM counter_rules WHERE lead IN ('ZQS', 'ZQX', 'ZQN', 'ZQM')`;
+}
+
+// --- several deliveries in one count ---------------------------------------------------------------
+const sa = `11${stamp.slice(0, 4)}`;
+const sb = `22${stamp.slice(0, 4)}`;
+const sc = `33${stamp.slice(0, 4)}`;
+const mk = (s6, n) => `ZQM${s6}0${String(n).padStart(4, "0")}`;
+await call("POST", `${C}/cancel`, ta);
+let m = (await call("POST", `${C}/mode`, ta, { multi: true })).body;
+check("a count of several deliveries starts empty", m.multi === true && m.groups.length === 0 && m.active === true, m);
+r = (await call("POST", `${C}/scan`, ta, { code: mk(sa, 1) })).body;
+check("the first package starts delivery 1", r.outcome === "new_delivery" && r.state.groups.length === 1, r);
+r = (await call("POST", `${C}/scan`, ta, { code: mk(sb, 1) })).body;
+check("a package of another delivery starts delivery 2 without asking", r.outcome === "new_delivery" && r.state.groups.length === 2, r.state.groups);
+r = (await call("POST", `${C}/scan`, ta, { code: mk(sa, 2) })).body;
+check("the next package of delivery 1 joins it, though delivery 2 was started in between", r.outcome === "counted" && r.state.groups[0].count === 2 && r.state.groups[1].count === 1 && r.state.groups[0].rule !== null, r.state.groups);
+r = (await call("POST", `${C}/scan`, ta, { code: mk(sb, 2) })).body;
+check("and the same for delivery 2", r.outcome === "counted" && r.state.groups[1].count === 2, r.state.groups);
+await call("POST", `${C}/scan`, ta, { code: mk(sa, 3) });
+await call("POST", `${C}/scan`, ta, { code: mk(sb, 3) });
+r = (await call("POST", `${C}/scan`, ta, { code: mk(sa, 2) })).body;
+check("a package scanned twice is a duplicate, whichever delivery holds it", r.outcome === "duplicate", r);
+s = (await call("GET", `${C}/state`, ta)).body;
+check("the total and each delivery are counted", s.count === 6 && s.groups.map((x) => x.count).join() === "3,3", s.groups);
+
+const g1 = s.groups[0];
+s = (await call("POST", `${C}/group-adjust`, ta, { group: g1.id, delta: -1 })).body;
+check("one delivery's rule can be narrowed on its own", s.groups[0].rule.prefix === g1.rule.prefix - 1 && s.groups[0].source === "adjusted" && s.groups[1].source !== "adjusted", s.groups);
+await call("POST", `${C}/group-adjust`, ta, { group: g1.id, delta: 1 });
+s = (await call("POST", `${C}/group-expected`, ta, { group: g1.id, expected: 4 })).body;
+check("an expected number is kept per delivery", s.groups[0].expected === 4 && s.groups[1].expected === null, s.groups);
+check("a delivery in someone else's count cannot be changed", (await call("POST", `${C}/group-expected`, tb, { group: g1.id, expected: 9 })).body.groups?.length === 0);
+
+if (noteOn) {
+let nc = (await call("POST", `${C}/note-compare`, ta, { ids: [mk(sa, 1), mk(sa, 2), mk(sa, 3), mk(sa, 4)], group: g1.id })).body;
+check("a note for delivery 1 is compared with delivery 1 only (delivery 2's packages are not extra)", nc.missing.join() === mk(sa, 4) && nc.extra.length === 0 && nc.matched.length === 3, nc);
+nc = (await call("POST", `${C}/note-compare`, ta, { ids: [mk(sa, 1), mk(sa, 2), mk(sa, 3), mk(sa, 4), mk(sb, 1), mk(sb, 2), mk(sb, 3), mk(sc, 1), mk(sc, 2)], group: "all" })).body;
+check("a note that lists everything is split by delivery", nc.deliveries?.length === 2 && nc.deliveries[0].comparison.missing.join() === mk(sa, 4) && nc.deliveries[1].comparison.missing.length === 0, nc);
+check("and a delivery on the note that was never scanned is reported", nc.unscanned?.length === 1 && nc.unscanned[0].length === 2, nc.unscanned);
+
+}
+
+s = (await call("POST", `${C}/undo`, ta)).body;
+check("remove last takes back the newest package of any delivery", s.count === 5 && s.groups[1].count === 2, s.groups);
+await call("POST", `${C}/scan`, ta, { code: mk(sc, 1) });
+s = (await call("GET", `${C}/state`, ta)).body;
+check("a third delivery is started", s.groups.length === 3, s.groups.length);
+s = (await call("POST", `${C}/undo`, ta)).body;
+check("taking back its only package removes the delivery", s.groups.length === 2, s.groups.length);
+check("going back to one delivery needs the deliveries merged first", (await call("POST", `${C}/mode`, ta, { multi: false })).status === 400);
+
+const [d1, d2] = s.groups;
+s = (await call("POST", `${C}/group-merge`, ta, { from: d2.id, into: d1.id })).body;
+check("two deliveries can be joined", s.groups.length === 1 && s.groups[0].count === 5 && s.groups[0].expected === 4, s.groups);
+s = (await call("POST", `${C}/mode`, ta, { multi: false })).body;
+check("with one delivery left the count goes back to a single delivery, keeping what was counted", s.multi === false && s.count === 5 && s.groups.length === 0, s);
+await call("POST", `${C}/cancel`, ta);
+
+// A single count that meets a package of another delivery can turn into several.
+await call("POST", `${C}/scan`, ta, { code: mk(sa, 1) });
+await call("POST", `${C}/scan`, ta, { code: mk(sa, 2) });
+r = (await call("POST", `${C}/scan`, ta, { code: mk(sb, 1) })).body;
+check("in a single count another delivery's package is a mismatch", r.outcome === "mismatch", r);
+r = (await call("POST", `${C}/resolve`, ta, { code: mk(sb, 1), choice: "delivery" })).body;
+check("it can be counted as another delivery, which turns the count into several", r.state.multi === true && r.state.groups.length === 2 && r.state.groups[0].count === 2 && r.state.groups[1].count === 1, r.state);
+await call("POST", `${C}/scan`, ta, { code: mk(sb, 2) });
+await call("POST", `${C}/scan`, ta, { code: mk(sb, 3) });
+const before = (await call("GET", `${C}/stats?unit=day&compare=0`, ta)).body.current;
+const fin = (await call("POST", `${C}/finish`, ta)).body;
+check("finishing saves every delivery", fin.ok === true && fin.deliveries?.length === 2 && fin.deliveries.map((x) => x.colli).join() === "2,3" && fin.colli === 5, fin);
+const after2 = (await call("GET", `${C}/stats?unit=day&compare=0`, ta)).body.current;
+check("each delivery is a shipment of its own in the statistics", after2.shipments - before.shipments === 2 && after2.colli - before.colli === 5, { before: before.shipments, after: after2.shipments });
+check("the count is closed afterwards", (await call("GET", `${C}/state`, ta)).body.active === false);
+if (sql) {
+  const left = await sql`SELECT (SELECT count(*) FROM counter_scans s JOIN counter_drafts d ON d.id = s.draft_id JOIN users u ON u.id = d.user_id WHERE u.email = ${A.email})::int AS scans, (SELECT count(*) FROM counter_groups g JOIN counter_drafts d ON d.id = g.draft_id JOIN users u ON u.id = d.user_id WHERE u.email = ${A.email})::int AS groups`;
+  check("no package and no delivery is left behind", left[0].scans === 0 && left[0].groups === 0, left);
 }
 
 const sv = await call("POST", `${C}/finish`, ta, null, "sv");

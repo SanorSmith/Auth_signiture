@@ -1,4 +1,4 @@
-import { normalizeCode } from "./counter-match";
+import { fits, learnRule, normalizeCode, type Rule } from "./counter-match";
 
 // Comparing the scanned packages of a shipment with the package IDs printed on its delivery note.
 // The note is read from a photo by an AI model. Nothing of the photo or of the IDs it contains is
@@ -161,4 +161,52 @@ export async function readDeliveryNote(imageBase64: string, mediaType: string, h
   } catch {
     return { error: "Could not read the delivery note. Try again." };
   }
+}
+
+// --- A note that lists packages of several deliveries --------------------------------------------------
+
+export type DeliveryScan = { id: number; number: number; codes: string[]; rule: Rule | null };
+export type GroupedComparison = {
+  deliveries: { id: number; number: number; comparison: Comparison }[];
+  // Numbers on the note that fit none of the deliveries scanned: grouped into the deliveries they look like.
+  unscanned: string[][];
+};
+
+// Which delivery does a package ID on the note belong to? The one that already holds it, else the one whose
+// rule it fits best (the longest shared beginning), else none.
+function owner(id: string, deliveries: DeliveryScan[]): DeliveryScan | null {
+  const holder = deliveries.find((d) => d.codes.includes(id));
+  if (holder) return holder;
+  let best: { d: DeliveryScan; prefix: number } | null = null;
+  for (const d of deliveries) {
+    const ref = d.codes[0];
+    if (!ref) continue;
+    const rule = d.rule ?? learnRule(ref, id);
+    if (rule && fits(rule, ref, id) && (!best || rule.prefix > best.prefix)) best = { d, prefix: rule.prefix };
+  }
+  return best?.d ?? null;
+}
+
+export function compareDeliveries(noteIds: string[], deliveries: DeliveryScan[]): GroupedComparison {
+  const assigned = new Map<number, string[]>(deliveries.map((d) => [d.id, []]));
+  const loose: string[] = [];
+  for (const id of noteIds) {
+    const d = owner(id, deliveries);
+    if (d) assigned.get(d.id)!.push(id);
+    else loose.push(id);
+  }
+  // The rest belong to deliveries nobody scanned: put each in a cluster of IDs that look alike.
+  const unscanned: string[][] = [];
+  for (const id of loose) {
+    const home = unscanned.find((c) => {
+      const rule = learnRule(c[0], id);
+      return rule !== null && fits(rule, c[0], id);
+    });
+    if (home) home.push(id);
+    else unscanned.push([id]);
+  }
+  return {
+    deliveries: deliveries.map((d) => ({ id: d.id, number: d.number, comparison: compareSets(assigned.get(d.id)!, d.codes) })),
+    unscanned,
+  };
 }

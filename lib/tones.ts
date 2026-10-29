@@ -17,6 +17,7 @@ export type ToneKind =
   | "done"
   | "deleted"
   | "counted"
+  | "delivery"
   | "duplicate"
   | "mismatch"
   | "finished";
@@ -75,6 +76,12 @@ const SCORES: Record<ToneKind, Voice[]> = {
   ],
   // Colli counter. A quick tick for every package counted, so fast scanning stays quick.
   counted: [{ f: 1568, at: 0, dur: 0.09, peak: 0.16, pluck: true }],
+  // A package that started a new delivery: three quick rising bell notes, C5 G5 C6.
+  delivery: [
+    { f: 523.25, at: 0, dur: 0.14, peak: 0.18, bell: true, pluck: true },
+    { f: 783.99, at: 0.07, dur: 0.14, peak: 0.18, bell: true, pluck: true },
+    { f: 1046.5, at: 0.14, dur: 0.3, peak: 0.2, bell: true, pluck: true },
+  ],
   // The same package scanned twice: two short low beeps.
   duplicate: [
     { f: 330, at: 0, dur: 0.12, peak: 0.22, type: "triangle", pluck: true },
@@ -110,6 +117,7 @@ const VIBRATION: Record<ToneKind, number[]> = {
   done: [40],
   deleted: [80],
   counted: [30],
+  delivery: [40, 40, 90],
   duplicate: [80, 60, 80],
   mismatch: [300, 120, 300, 120, 300],
   finished: [100, 60, 200],
@@ -140,6 +148,7 @@ export const ACTION_TONES: ToneInfo[] = [
   { kind: "done", label: "Done", hint: "An action went through" },
   { kind: "deleted", label: "Denied or removed", hint: "A request or user was denied, removed or deleted" },
   { kind: "counted", label: "Package counted", hint: "A package was added to the count", needs: "colli_counter" },
+  { kind: "delivery", label: "New delivery", hint: "A package started another delivery in the same count", needs: "colli_counter" },
   { kind: "duplicate", label: "Package already counted", hint: "The same package was scanned twice", needs: "colli_counter" },
   { kind: "mismatch", label: "Wrong shipment", hint: "The package does not belong to this shipment", needs: "colli_counter" },
   { kind: "finished", label: "Count finished", hint: "The shipment count was saved", needs: "colli_counter" },
@@ -271,7 +280,7 @@ const lastPlayed = new Map<ToneKind, number>();
 export async function signal(kind: ToneKind): Promise<boolean> {
   const now = Date.now();
   // Scan results and errors always sound: fast scanning means the same tone again within seconds.
-  const always = kind === "error" || kind === "counted" || kind === "duplicate" || kind === "mismatch";
+  const always = kind === "error" || kind === "counted" || kind === "delivery" || kind === "duplicate" || kind === "mismatch";
   if (!always && now - (lastPlayed.get(kind) ?? 0) < 4000) return true;
   lastPlayed.set(kind, now);
   try {

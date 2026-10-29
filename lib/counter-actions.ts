@@ -6,6 +6,11 @@ import {
   counterAdjust,
   counterCancel,
   counterFinish,
+  counterGroupAdjust,
+  counterGroupExpected,
+  counterMergeGroups,
+  counterRemoveGroup,
+  counterSetMode,
   counterResolve,
   counterScan,
   counterSetExpected,
@@ -27,7 +32,7 @@ export async function scanPackage(code: string) {
   return counterScan((await me()).uid, code);
 }
 
-export async function resolveScan(code: string, choice: "ignore" | "count" | "new") {
+export async function resolveScan(code: string, choice: "ignore" | "count" | "new" | "delivery") {
   const s = await me();
   return counterResolve(s.uid, s.email, code, choice);
 }
@@ -72,4 +77,25 @@ export async function switchNoteCompare(formData: FormData) {
   await requireAdmin();
   await setNoteCompareEnabled(formData.get("on") === "1");
   revalidatePath("/counter", "layout");
+}
+
+// Several deliveries in one count (a truck with deliveries from different suppliers).
+export async function setCounterMode(multi: boolean) {
+  return counterSetMode((await me()).uid, multi);
+}
+
+export async function adjustGroup(group: number, delta: number) {
+  return counterGroupAdjust((await me()).uid, group, delta);
+}
+
+export async function setGroupExpected(group: number, expected: number | null) {
+  return counterGroupExpected((await me()).uid, group, expected);
+}
+
+export async function mergeGroups(from: number, into: number) {
+  return counterMergeGroups((await me()).uid, from, into);
+}
+
+export async function removeGroup(group: number) {
+  return counterRemoveGroup((await me()).uid, group);
 }

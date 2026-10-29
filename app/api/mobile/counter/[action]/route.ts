@@ -2,6 +2,12 @@ import { type NextRequest } from "next/server";
 import {
   counterAdjust,
   counterCancel,
+  counterGroupAdjust,
+  counterGroupExpected,
+  counterMergeGroups,
+  counterRemoveGroup,
+  counterSetMode,
+  deliveriesForCompare,
   counterFinish,
   counterResolve,
   counterScan,
@@ -15,7 +21,7 @@ import {
   previousRange,
   scannedCodes,
 } from "@/lib/counter";
-import { cleanIds, compareSets, noteReadingConfigured, readDeliveryNote } from "@/lib/counter-note";
+import { cleanIds, compareDeliveries, compareSets, noteReadingConfigured, readDeliveryNote } from "@/lib/counter-note";
 import { blockedFor, recordFailure } from "@/lib/ratelimit";
 import { guard, isResponse, json, readBody, reply } from "@/lib/mobile";
 
@@ -51,12 +57,12 @@ export async function POST(req: Request, { params }: Ctx) {
   const me = await guard("colli_counter");
   if (isResponse(me)) return me;
   const { action } = await params;
-  const body = await readBody<{ code?: string; choice?: string; delta?: number; expected?: number | null; image?: string; mediaType?: string; ids?: unknown; on?: boolean }>(req);
+  const body = await readBody<{ code?: string; choice?: string; delta?: number; expected?: number | null; image?: string; mediaType?: string; ids?: unknown; on?: boolean; multi?: boolean; group?: number | "all"; from?: number; into?: number }>(req);
   switch (action) {
     case "scan":
       return json(await counterScan(me.uid, body.code));
     case "resolve": {
-      const choice = body.choice === "count" || body.choice === "new" ? body.choice : "ignore";
+      const choice = body.choice === "count" || body.choice === "new" || body.choice === "delivery" ? body.choice : "ignore";
       const result = await counterResolve(me.uid, me.email, body.code, choice);
       return "error" in result ? reply({ error: result.error }, 400) : json(result);
     }
@@ -64,6 +70,18 @@ export async function POST(req: Request, { params }: Ctx) {
       return json(await counterAdjust(me.uid, Number(body.delta) || 0));
     case "expected":
       return json(await counterSetExpected(me.uid, body.expected === null || body.expected === undefined ? null : Number(body.expected)));
+    case "mode": {
+      const result = await counterSetMode(me.uid, body.multi === true);
+      return "error" in result ? reply({ error: result.error }, 400) : json(result.state);
+    }
+    case "group-adjust":
+      return json(await counterGroupAdjust(me.uid, Number(body.group), Number(body.delta) || 0));
+    case "group-expected":
+      return json(await counterGroupExpected(me.uid, Number(body.group), body.expected === null || body.expected === undefined ? null : Number(body.expected)));
+    case "group-merge":
+      return json(await counterMergeGroups(me.uid, Number(body.from), Number(body.into)));
+    case "group-remove":
+      return json(await counterRemoveGroup(me.uid, Number(body.group)));
     case "note-setting": {
       if (!me.isAdmin) return reply({ error: "Not allowed" }, 403);
       await setNoteCompareEnabled(body.on === true);
@@ -81,16 +99,28 @@ export async function POST(req: Request, { params }: Ctx) {
       if (wait) return reply({ error: `Too many delivery notes read. Try again in ${Math.ceil(wait / 60)} min.` }, 429);
       await recordFailure(key); // counts the attempt, whatever happens next
       // Tell the reader what the scanned packages look like: two samples and their usual length.
-      const scanned = await scannedCodes(me.uid);
-      const hint = scanned.length ? { samples: [...new Set([scanned[0], scanned[scanned.length - 1]])], length: scanned[0].length } : null;
+      const only = typeof body.group === "number" ? body.group : null;
+      const scanned = await scannedCodes(me.uid, only);
+      let hint = scanned.length ? { samples: [...new Set([scanned[0], scanned[scanned.length - 1]])], length: scanned[0].length } : null;
+      if (body.group === "all") {
+        // A note that lists every delivery: show one sample of each, so the reader looks for all of them.
+        const each = (await deliveriesForCompare(me.uid)).filter((d) => d.codes.length > 0);
+        hint = each.length ? { samples: each.slice(0, 5).map((d) => d.codes[0]), length: each[0].codes[0].length } : null;
+      }
       const reading = await readDeliveryNote(body.image, mediaType, hint);
       return "error" in reading ? reply({ error: reading.error }, 502) : json(reading);
     }
     case "note-compare": {
       if (!(await noteCompareEnabled())) return reply({ error: "Comparing with a delivery note is turned off" }, 403);
-      const scanned = await scannedCodes(me.uid);
-      if (scanned.length === 0) return reply({ error: "Nothing has been counted yet" }, 400);
       const ids = cleanIds(Array.isArray(body.ids) ? body.ids : []);
+      if (body.group === "all") {
+        const deliveries = (await deliveriesForCompare(me.uid)).filter((d) => d.codes.length > 0);
+        if (deliveries.length === 0) return reply({ error: "Nothing has been counted yet" }, 400);
+        if (ids.length === 0) return reply({ error: "There are no package IDs to compare" }, 400);
+        return json(compareDeliveries(ids, deliveries));
+      }
+      const scanned = await scannedCodes(me.uid, typeof body.group === "number" ? body.group : null);
+      if (scanned.length === 0) return reply({ error: "Nothing has been counted yet" }, 400);
       if (ids.length === 0) return reply({ error: "There are no package IDs to compare" }, 400);
       return json(compareSets(ids, scanned));
     }

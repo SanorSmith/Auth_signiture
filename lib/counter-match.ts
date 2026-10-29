@@ -50,3 +50,16 @@ export function adjustRule(rule: Rule, delta: number): Rule {
   const prefix = Math.min(rule.len - 1, Math.max(1, rule.prefix + delta));
   return { len: rule.len, prefix };
 }
+
+// One rule that fits all of these codes: used when two deliveries are merged into one. The shared
+// beginning of all of them, with the last MIN_TAIL characters free. Null if they differ in length.
+export function ruleForCodes(codes: string[]): Rule | null {
+  if (codes.length < 2) return null;
+  const ref = codes[0];
+  let shared = ref.length;
+  for (const c of codes) {
+    if (c.length !== ref.length) return null;
+    shared = Math.min(shared, commonPrefix(ref, c));
+  }
+  return { len: ref.length, prefix: Math.max(1, Math.min(shared, ref.length - MIN_TAIL)) };
+}
