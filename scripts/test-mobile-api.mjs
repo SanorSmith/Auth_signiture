@@ -94,7 +94,7 @@ check("a client cannot use the monitor (403)", clientLookup.status === 403, clie
 // --- admin handles the requests ------------------------------------------------
 await wait(1500); // notifications are sent after the response
 const noNumbers = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Acme" });
-check("a request with no numbers is refused", noNumbers.status === 400 && /pallets, bundles or boxes/i.test(noNumbers.body?.error ?? ""), noNumbers);
+check("a request with no numbers is refused", noNumbers.status === 400 && /pallets, bundles or boxes|pallar, bunt eller kartonger/i.test(noNumbers.body?.error ?? ""), noNumbers);
 const noSupplier = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, box: 2 });
 check("a request without the supplier is refused", noSupplier.status === 400, noSupplier);
 const tooMany = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Acme", pallet: 1000 });
