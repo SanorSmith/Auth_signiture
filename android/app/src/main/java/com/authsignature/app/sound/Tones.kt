@@ -48,6 +48,7 @@ enum class Tone(val key: String, val label: String, val hint: String, val vibrat
     Error("error", "Error", "Something was not accepted", longArrayOf(200), false),
     Counted("counted", "Package counted", "A package was added to the count", longArrayOf(30), false),
     Duplicate("duplicate", "Package already counted", "The same package was scanned twice", longArrayOf(80, 60, 80), false),
+    Delivery("delivery", "New delivery", "A package started another delivery in the same count", longArrayOf(40, 40, 90), false),
     Mismatch("mismatch", "Wrong shipment", "The package does not belong to this shipment", longArrayOf(300, 120, 300, 120, 300), false),
     Finished("finished", "Count finished", "The shipment count was saved", longArrayOf(100, 60, 200), false);
 
@@ -105,6 +106,12 @@ object Tones {
             Voice(622.25, 0.22f, 0.2f, 0.16f, Wave.Sawtooth),
             Voice(880.0, 0.44f, 0.2f, 0.16f, Wave.Sawtooth),
             Voice(622.25, 0.66f, 0.3f, 0.16f, Wave.Sawtooth),
+        ),
+        // A package that started a new delivery: three quick rising bell notes, C5 G5 C6.
+        Tone.Delivery to listOf(
+            Voice(523.25, 0f, 0.14f, 0.18f, bell = true, pluck = true),
+            Voice(783.99, 0.07f, 0.14f, 0.18f, bell = true, pluck = true),
+            Voice(1046.5, 0.14f, 0.3f, 0.2f, bell = true, pluck = true),
         ),
         Tone.Finished to listOf(
             Voice(523.25, 0f, 0.2f, 0.18f, bell = true, pluck = true),

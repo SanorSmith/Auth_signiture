@@ -113,6 +113,9 @@ object I18n {
         Regex("""of (\d+) expected""") to { m -> "av ${m[1]} förväntade" },
         Regex("""Previous shipment saved: (\d+) colli""") to { m -> "Föregående leverans sparad: ${m[1]} kolli" },
         Regex("""Matching: first (\d+) of (\d+) characters""") to { m -> "Matchar: första ${m[1]} av ${m[2]} tecken" },
+        Regex("""(\d+) deliveries""") to { m -> "${m[1]} leveranser" },
+        Regex("""Join delivery (\d+) into delivery (\d+)\?""") to { m -> "Slå ihop leverans ${m[1]} med leverans ${m[2]}?" },
+        Regex("""Finish and save (\d+) deliveries \((.+) packages\)\?""") to { m -> "Slutföra och spara ${m[1]} leveranser (${m[2]} kolli)?" },
         Regex("""Finish with (\d+) colli\?""") to { m -> "Slutföra med ${m[1]} kolli?" },
         Regex("""(\d+) of (\d+) shipments with an expected number differed from it\.""") to
             { m -> "${m[1]} av ${m[2]} leveranser med ett förväntat antal avvek från det." },

@@ -21,6 +21,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -160,6 +161,10 @@ fun CounterScreen() {
                     note(reply.code ?: value, Kind.Duplicate)
                     container.signal(Tone.Duplicate)
                 }
+                "new_delivery" -> {
+                    note(reply.code ?: value, Kind.Counted)
+                    container.signal(Tone.Delivery)
+                }
                 "mismatch" -> pending = reply.code ?: value
                 else -> {
                     error = "Not a valid package code"
@@ -185,6 +190,10 @@ fun CounterScreen() {
                     note(value, Kind.Forced)
                     container.signal(Tone.Counted)
                 }
+                "delivery" -> {
+                    note(value, Kind.Counted)
+                    container.signal(Tone.Delivery)
+                }
                 else -> {
                     feed = listOf(Entry(value, Kind.Counted))
                     notice = reply.finished?.let { "Previous shipment saved: ${it.colli} colli" }
@@ -206,14 +215,27 @@ fun CounterScreen() {
 
     // The result of a finished count.
     result?.let { done ->
+        val list = done.deliveries.takeIf { it.size > 1 }
         val diff = done.expected?.let { done.colli - it }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             AppCard(container = MaterialTheme.colorScheme.primaryContainer) {
                 Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Shipment counted", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(if (list != null) "Deliveries counted" else "Shipment counted", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(done.colli.toString(), fontSize = 88.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary)
                     Text("colli received", style = MaterialTheme.typography.titleMedium)
-                    if (diff != null) {
+                    list?.forEachIndexed { i, d ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("Delivery ${i + 1}")
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                d.expected?.let { e ->
+                                    if (d.colli == e) Pill("Matches the expected $e", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+                                    else Pill("Expected $e: ${kotlin.math.abs(d.colli - e)} ${if (d.colli < e) "fewer" else "more"}", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Text(d.colli.toString(), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            }
+                        }
+                    }
+                    if (list == null && diff != null) {
                         if (diff == 0) SuccessNote("Matches the expected ${done.expected}")
                         else ErrorNote("Expected ${done.expected}: ${kotlin.math.abs(diff)} ${if (diff < 0) "fewer" else "more"}")
                     }
@@ -232,7 +254,25 @@ fun CounterScreen() {
         return
     }
 
+    val multi = current.multi
+    val started = current.count > 0 || (multi && current.groups.isNotEmpty())
+
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (!started) {
+            AppCard {
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("What are you counting?", fontWeight = FontWeight.Medium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = !multi, onClick = { if (multi) call { setState(container.api.counterMode(false)) } }, enabled = !locked, label = { Text("One delivery") })
+                        FilterChip(selected = multi, onClick = { if (!multi) call { setState(container.api.counterMode(true)) } }, enabled = !locked, label = { Text("Several deliveries") })
+                    }
+                    if (multi) Text("Scan the packages in any order. Each one joins the delivery it belongs to, or starts a new one.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        } else if (multi && current.groups.size <= 1) {
+            TextButton(onClick = { call { setState(container.api.counterMode(false)) } }, enabled = !locked) { Text("Back to one delivery") }
+        }
+
         AppCard {
             Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("colli counted", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -243,7 +283,10 @@ fun CounterScreen() {
                     fontFamily = FontFamily.Monospace,
                     color = if (current.expected != null && current.count == current.expected) com.authsignature.app.ui.status.success else MaterialTheme.colorScheme.primary,
                 )
-                current.expected?.let { Text("of $it expected", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                if (multi && current.groups.isNotEmpty()) {
+                    Text(if (current.groups.size == 1) "1 delivery" else "${current.groups.size} deliveries", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (!multi) current.expected?.let { Text("of $it expected", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 notice?.let { SuccessNote(it, Modifier.padding(top = 8.dp)) }
             }
         }
@@ -267,7 +310,7 @@ fun CounterScreen() {
 
                 val ref = current.reference
                 val rule = current.rule
-                AppCard(container = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)) {
+                if (!multi) AppCard(container = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         when {
                             ref == null -> Text("Scan the first package of the shipment.", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -312,7 +355,7 @@ fun CounterScreen() {
                     }
                 }
 
-                OutlinedTextField(
+                if (!multi) OutlinedTextField(
                     value = expectedText,
                     onValueChange = { expectedText = it.filter(Char::isDigit).take(4) },
                     label = { Text("Expected colli (optional)") },
@@ -326,7 +369,21 @@ fun CounterScreen() {
             }
         }
 
-        if (current.noteCompare && current.count > 0 && pending == null) NoteCompareSection(enabled = !locked)
+        if (multi) {
+            current.groups.forEach { g ->
+                DeliveryCard(
+                    group = g,
+                    others = current.groups.filter { it.id != g.id },
+                    enabled = !locked,
+                    onAdjust = { d -> call { setState(container.api.counterGroupAdjust(g.id, d)) } },
+                    onExpected = { n -> call { setState(container.api.counterGroupExpected(g.id, n)) } },
+                    onJoin = { into -> confirm = "merge:${g.id}:$into" },
+                    onRemove = { confirm = "remove:${g.id}" },
+                )
+            }
+        }
+
+        if (!multi && current.noteCompare && current.count > 0 && pending == null) NoteCompareSection(enabled = !locked)
 
         if (feed.isNotEmpty()) {
             AppCard {
@@ -348,7 +405,7 @@ fun CounterScreen() {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { confirm = "undo" }, enabled = !locked && current.count > 0, shape = RoundedCornerShape(10.dp), modifier = Modifier.weight(1f)) { Text("Remove last", maxLines = 1) }
             OutlinedButton(onClick = { confirm = "cancel" }, enabled = !locked && current.active, shape = RoundedCornerShape(10.dp), modifier = Modifier.weight(1f)) { Text("Cancel count", maxLines = 1) }
-            Button(onClick = { saveExpected(); confirm = "finish" }, enabled = !locked && current.count > 0, shape = RoundedCornerShape(10.dp), modifier = Modifier.weight(1f)) { Text("Finish", maxLines = 1) }
+            Button(onClick = { if (!multi) saveExpected(); confirm = "finish" }, enabled = !locked && current.count > 0, shape = RoundedCornerShape(10.dp), modifier = Modifier.weight(1f)) { Text("Finish", maxLines = 1) }
         }
     }
 
@@ -381,7 +438,7 @@ fun CounterScreen() {
             onDismiss = { confirm = null },
         )
         "finish" -> ConfirmDialog(
-            title = "Finish with ${current.count} colli?",
+            title = if (multi) "Finish and save ${current.groups.size} deliveries (${current.groups.joinToString(" + ") { it.count.toString() }} packages)?" else "Finish with ${current.count} colli?",
             text = "Only the number is saved. The package codes are deleted.",
             confirmLabel = "Yes, finish",
             destructive = false,
@@ -398,6 +455,34 @@ fun CounterScreen() {
         )
     }
 
+    val parts = confirm?.split(":").orEmpty()
+    if (parts.firstOrNull() == "remove") {
+        ConfirmDialog(
+            title = "Remove this delivery and all its scanned packages?",
+            text = "Nothing is saved.",
+            confirmLabel = "Yes, remove",
+            onConfirm = {
+                call {
+                    setState(container.api.counterGroupRemove(parts[1].toInt()))
+                    container.signal(Tone.Deleted)
+                }
+            },
+            onDismiss = { confirm = null },
+        )
+    }
+    if (parts.firstOrNull() == "merge") {
+        val from = parts[1].toInt()
+        val into = parts[2].toInt()
+        ConfirmDialog(
+            title = "Join delivery ${current.groups.firstOrNull { it.id == from }?.number} into delivery ${current.groups.firstOrNull { it.id == into }?.number}?",
+            text = "Their packages are counted together.",
+            confirmLabel = "Yes, join",
+            destructive = false,
+            onConfirm = { call { setState(container.api.counterGroupMerge(from, into)) } },
+            onDismiss = { confirm = null },
+        )
+    }
+
     pending?.let { wrong ->
         AlertDialog(
             onDismissRequest = {},
@@ -408,6 +493,7 @@ fun CounterScreen() {
                     Button(onClick = { decide("ignore") }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp)) { Text("Ignore this scan") }
                     OutlinedButton(onClick = { decide("count") }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp)) { Text("Count it anyway") }
                     if (current.count > 0) {
+                        OutlinedButton(onClick = { decide("delivery") }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp)) { Text("Count as another delivery") }
                         OutlinedButton(onClick = { decide("new") }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp)) { Text("Save this shipment and start a new one") }
                     }
                 }

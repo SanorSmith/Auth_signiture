@@ -55,7 +55,7 @@ private fun relevant(tone: Tone, u: User) = when (tone) {
     Tone.ResetRequested -> u.can("reset_passwords")
     Tone.CodeIssued, Tone.RequestDenied, Tone.RequestRemoved, Tone.Sent -> u.can("request")
     Tone.Found, Tone.Missing -> u.can("monitor")
-    Tone.Counted, Tone.Duplicate, Tone.Mismatch, Tone.Finished -> u.can("colli_counter")
+    Tone.Counted, Tone.Duplicate, Tone.Delivery, Tone.Mismatch, Tone.Finished -> u.can("colli_counter")
     else -> true
 }
 

@@ -101,7 +101,20 @@ data class CounterRule(val len: Int, val prefix: Int)
 data class RecentScan(val code: String, val forced: Boolean = false, val at: Long = 0)
 
 @Serializable
+data class CounterGroup(
+    val id: Int,
+    val number: Int = 1,
+    val count: Int = 0,
+    val reference: String? = null,
+    val rule: CounterRule? = null,
+    val source: String? = null,
+    val expected: Int? = null,
+)
+
+@Serializable
 data class CounterState(
+    val multi: Boolean = false,
+    val groups: List<CounterGroup> = emptyList(),
     val active: Boolean = false,
     val count: Int = 0,
     val reference: String? = null,
@@ -116,7 +129,10 @@ data class CounterState(
 data class ScanReply(val outcome: String, val code: String? = null, val state: CounterState = CounterState())
 
 @Serializable
-data class FinishedCount(val colli: Int = 0, val expected: Int? = null)
+data class FinishedCount(val colli: Int = 0, val expected: Int? = null, val deliveries: List<FinishedDelivery> = emptyList())
+
+@Serializable
+data class FinishedDelivery(val colli: Int = 0, val expected: Int? = null)
 
 @Serializable
 data class ResolveReply(val finished: FinishedCount? = null, val state: CounterState = CounterState())

@@ -99,6 +99,15 @@ class Api(private val baseUrl: String, private val token: () -> String?) {
         json.decodeFromString<NoteReading>(call("POST", "/counter/note-read", obj("image" to imageBase64, "mediaType" to "image/jpeg")))
     suspend fun counterNoteCompare(ids: List<String>) =
         json.decodeFromString<NoteComparison>(call("POST", "/counter/note-compare", obj("ids" to ids)))
+    suspend fun counterMode(multi: Boolean) = json.decodeFromString<CounterState>(call("POST", "/counter/mode", obj("multi" to multi)))
+    suspend fun counterGroupAdjust(group: Int, delta: Int) =
+        json.decodeFromString<CounterState>(call("POST", "/counter/group-adjust", obj("group" to group, "delta" to delta)))
+    suspend fun counterGroupExpected(group: Int, expected: Int?) =
+        json.decodeFromString<CounterState>(call("POST", "/counter/group-expected", obj("group" to group, "expected" to expected)))
+    suspend fun counterGroupMerge(from: Int, into: Int) =
+        json.decodeFromString<CounterState>(call("POST", "/counter/group-merge", obj("from" to from, "into" to into)))
+    suspend fun counterGroupRemove(group: Int) =
+        json.decodeFromString<CounterState>(call("POST", "/counter/group-remove", obj("group" to group)))
     suspend fun counterUndo() = json.decodeFromString<CounterState>(call("POST", "/counter/undo"))
     suspend fun counterCancel() = json.decodeFromString<CounterState>(call("POST", "/counter/cancel"))
     suspend fun counterFinish() = json.decodeFromString<FinishedCount>(call("POST", "/counter/finish"))
