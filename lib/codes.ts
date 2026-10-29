@@ -54,10 +54,11 @@ export function vcodeFromCounter(counter: number) {
 // A request must say who delivers and what: how many pallets, bundles and boxes. Most deliveries are
 // one type; a mixed delivery has a number for each. They are kept together in the request's note,
 // which is what the admin sees, for example "Acme Freight · 2 Pallet · 6 Box". The types are stored in
-// English and shown in the person's language (Pall, Bunt, Kartong in Swedish).
+// English and shown in the person's language (Pall, Bunt, Kartong, Övrigt in Swedish). "Other" is for
+// anything that is none of the first three.
 export const SUPPLIER_MAX = 36;
 export const COUNT_MAX = 999;
-export const DELIVERY_TYPES = ["Pallet", "Bundle", "Box"] as const;
+export const DELIVERY_TYPES = ["Pallet", "Bundle", "Box", "Other"] as const;
 export type DeliveryType = (typeof DELIVERY_TYPES)[number];
 
 // Older versions of the app sent one number and one type; these words still map to a type.
@@ -95,7 +96,10 @@ export function deliveryNote(
     parts.push(`${Number(n)} ${type}`);
   }
   if (parts.length === 0) return { error: "Enter how many pallets, bundles or boxes" };
-  return { note: [supplier, ...parts].join(" · ") };
+  const note = [supplier, ...parts].join(" · ");
+  // The note is kept in a column that holds at most NOTE_MAX characters.
+  if (note.length > NOTE_MAX) return { error: "The text is too long. Shorten the supplier name." };
+  return { note };
 }
 
 // Requests made before the types had their own numbers read "Acme · 12 colli · Pallet". They are shown as

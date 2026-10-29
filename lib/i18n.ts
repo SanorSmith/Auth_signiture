@@ -65,6 +65,7 @@ const SV: Record<string, string> = {
   Bundle: "Bunt",
   Pack: "Pak",
   Box: "Kartong",
+  Other: "Övrigt",
   Bag: "Säck",
   Crate: "Back",
   Roll: "Rulle",
@@ -229,7 +230,8 @@ const SV: Record<string, string> = {
   Removed: "Borttagen",
   "No verification code issued for this number yet": "Ingen verifieringskod har utfärdats för det här numret ännu",
   "Enter the supplier name": "Ange leverantörens namn",
-  "Enter how many pallets, bundles or boxes": "Ange hur många pallar, bunt eller kartonger",
+  "Enter how many pallets, bundles or boxes": "Ange hur många pallar, bunt, kartonger eller övrigt",
+  "The text is too long. Shorten the supplier name.": "Texten är för lång. Korta ner leverantörens namn.",
   Type: "Typ",
   Number: "Antal",
   "How many?": "Hur många?",
@@ -436,7 +438,7 @@ const PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^(\d+) h ago$/, (m) => `för ${m[1]} h sedan`],
   [/^(\d+) d ago$/, (m) => `för ${m[1]} d sedan`],
   // "Acme · 12 colli · Pallet": the delivery details keep what was typed, only the type word is translated.
-  [/^(.+?)((?: · \d+ (?:Pallet|Bundle|Box|Pack|Carton))+)$/, (m) => `${m[1]}${m[2].replace(/(Pallet|Bundle|Box|Pack|Carton)/g, (w) => SV[w] ?? w)}`],
+  [/^(.+?)((?: · \d+ (?:Pallet|Bundle|Box|Other|Pack|Carton))+)$/, (m) => `${m[1]}${m[2].replace(/(Pallet|Bundle|Box|Other|Pack|Carton)/g, (w) => SV[w] ?? w)}`],
   [/^(.+) · (\d+) colli$/, (m) => `${m[1]} · ${m[2]} kolli`],
   [/^(.+) · (\d+) colli · (.+)$/, (m) => `${m[1]} · ${m[2]} kolli · ${SV[m[3]] ?? m[3]}`],
 ];

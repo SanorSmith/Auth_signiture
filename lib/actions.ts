@@ -56,7 +56,7 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
   if (!CODE_RE.test(code)) return { error: "Not a valid 10-digit number" };
   const delivery = deliveryNote(
     form.get("supplier"),
-    { Pallet: form.get("pallet"), Bundle: form.get("bundle"), Box: form.get("box") },
+    { Pallet: form.get("pallet"), Bundle: form.get("bundle"), Box: form.get("box"), Other: form.get("other") },
     { colli: form.get("colli"), type: form.get("colliType") },
   );
   if ("error" in delivery) return { error: delivery.error };

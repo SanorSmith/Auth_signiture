@@ -52,7 +52,7 @@ object I18n {
         "No note." to "Inga leveransuppgifter.",
         "The client" to "Kunden",
         // Scan
-        "Enter the supplier name and how many pallets, bundles or boxes first" to "Ange först leverantörens namn och hur många pallar, bunt eller kartonger",
+        "Enter the supplier name and how many pallets, bundles or boxes first" to "Ange först leverantörens namn och hur många pallar, bunt, kartonger eller övrigt",
         "YOUR VERIFICATION CODE" to "DIN VERIFIERINGSKOD",
         // Sign in
         "The admin has been notified." to "Administratören har meddelats.",
@@ -120,8 +120,8 @@ object I18n {
         Regex("""(\d+) min ago""") to { m -> "för ${m[1]} min sedan" },
         Regex("""(\d+) h ago""") to { m -> "för ${m[1]} h sedan" },
         Regex("""(\d+) d ago""") to { m -> "för ${m[1]} d sedan" },
-        Regex("""(.+?)((?: · \d+ (?:Pallet|Bundle|Box|Pack|Carton))+)""") to { m ->
-            m[1] + m[2].replace(Regex("(Pallet|Bundle|Box|Pack|Carton)")) { w -> t(w.value) }
+        Regex("""(.+?)((?: · \d+ (?:Pallet|Bundle|Box|Other|Pack|Carton))+)""") to { m ->
+            m[1] + m[2].replace(Regex("(Pallet|Bundle|Box|Other|Pack|Carton)")) { w -> t(w.value) }
         },
         Regex("""(.+) · (\d+) colli""") to { m -> "${m[1]} · ${m[2]} kolli" },
         Regex("""(.+) · (\d+) colli · (.+)""") to { m -> "${m[1]} · ${m[2]} kolli · ${t(m[3])}" },

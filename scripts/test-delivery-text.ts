@@ -17,7 +17,10 @@ check("nothing entered is refused", note(deliveryNote("Acme", {})) === "ERROR: E
 check("a number over 999 is refused", note(deliveryNote("Acme", { Pallet: "1000" })).startsWith("ERROR: Each number"));
 check("letters are refused", note(deliveryNote("Acme", { Pallet: "ab" })).startsWith("ERROR: Each number"));
 check("a short supplier name is refused", note(deliveryNote("A", { Pallet: "1" })) === "ERROR: Enter the supplier name");
-check("the longest possible text fits in 80 characters", note(deliveryNote("x".repeat(36), { Pallet: "999", Bundle: "999", Box: "999" })).length <= 80);
+check("Other is a type too", note(deliveryNote("Acme", { Other: "4" })) === "Acme · 4 Other");
+check("a mixed delivery with all four", note(deliveryNote("Acme", { Pallet: "1", Bundle: "2", Box: "3", Other: "4" })) === "Acme · 1 Pallet · 2 Bundle · 3 Box · 4 Other");
+check("a text that would not fit the database is refused with a message", note(deliveryNote("x".repeat(36), { Pallet: "999", Bundle: "999", Box: "999", Other: "999" })) === "ERROR: The text is too long. Shorten the supplier name.");
+check("the longest text that is accepted is 80 characters or less", note(deliveryNote("x".repeat(30), { Pallet: "999", Bundle: "999", Box: "999", Other: "999" })).length <= 80);
 // older apps
 check("an older app (number and type) still works", note(deliveryNote("Acme", {}, { colli: "12", type: "Pallet" })) === "Acme · 12 Pallet");
 check("and its Carton is a Box", note(deliveryNote("Acme", {}, { colli: "5", type: "Carton" })) === "Acme · 5 Box");
@@ -25,6 +28,7 @@ check("a type that does not exist is refused", note(deliveryNote("Acme", {}, { c
 check("the new fields win over the old ones", note(deliveryNote("Acme", { Box: "2" }, { colli: "9", type: "Pallet" })) === "Acme · 2 Box");
 
 check("Swedish: the types are translated", translate("sv", "Acme · 2 Pallet · 6 Box") === "Acme · 2 Pall · 6 Kartong", translate("sv", "Acme · 2 Pallet · 6 Box"));
+check("Swedish: Other is Övrigt", translate("sv", "Acme · 4 Other") === "Acme · 4 Övrigt", translate("sv", "Acme · 4 Other"));
 check("Swedish: all three", translate("sv", "Acme · 1 Pallet · 20 Bundle · 300 Box") === "Acme · 1 Pall · 20 Bunt · 300 Kartong");
 check("English stays as it is", translate("en", "Acme · 2 Pallet · 6 Box") === "Acme · 2 Pallet · 6 Box");
 check("an old request still reads in Swedish", translate("sv", "Acme · 12 colli · Pallet") === "Acme · 12 kolli · Pall");

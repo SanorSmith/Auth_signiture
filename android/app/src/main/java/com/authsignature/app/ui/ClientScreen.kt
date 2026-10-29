@@ -50,7 +50,7 @@ import com.authsignature.app.sound.Tone
 import kotlinx.coroutines.launch
 
 private const val SUPPLIER_MAX = 36
-private val DELIVERY_TYPES = listOf("Pallet", "Bundle", "Box")
+private val DELIVERY_TYPES = listOf("Pallet", "Bundle", "Box", "Other")
 
 /** Scan a number, see the code the admin issues for it, and the last three issued codes. */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
@@ -67,7 +67,7 @@ fun ClientScreen() {
     var mixed by remember { mutableStateOf(false) }
     var type by remember { mutableStateOf("") }
     var count by remember { mutableStateOf("") }
-    val counts = remember { mutableStateMapOf("Pallet" to "", "Bundle" to "", "Box" to "") }
+    val counts = remember { mutableStateMapOf("Pallet" to "", "Bundle" to "", "Box" to "", "Other" to "") }
     var busy by remember { mutableStateOf(false) }
     var okMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -93,7 +93,7 @@ fun ClientScreen() {
         errorMessage = null
         scope.launch {
             try {
-                okMessage = container.api.request(code, supplier.trim(), numbers["Pallet"], numbers["Bundle"], numbers["Box"]).message ?: "Request sent, waiting for the admin"
+                okMessage = container.api.request(code, supplier.trim(), numbers["Pallet"], numbers["Bundle"], numbers["Box"], numbers["Other"]).message ?: "Request sent, waiting for the admin"
                 container.signal(Tone.Sent)
                 number = ""
                 supplier = ""

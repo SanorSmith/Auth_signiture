@@ -101,7 +101,7 @@ const tooMany = await call("POST", "/api/mobile/request", client, { code: NUMBER
 check("a number over 999 is refused", tooMany.status === 400, tooMany);
 const oldApp = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Acme", colli: 2, colliType: "Drum" });
 check("an older app sending a type that does not exist is refused", oldApp.status === 400, oldApp);
-const reqB = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Beta Parts", bundle: 3 });
+const reqB = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Beta Parts", bundle: 3, other: 1 });
 check("client requests a second code", reqB.status === 200, reqB);
 
 const adminView = await call("GET", "/api/mobile/admin", admin);
@@ -109,6 +109,7 @@ const pendingA = adminView.body?.pending?.find((p) => p.number === NUMBER_A);
 const pendingB = adminView.body?.pending?.find((p) => p.number === NUMBER_B);
 check("admin sees both requests with their numbers", !!pendingA && !!pendingB && pendingA.askedBy === CLIENT.email, adminView.body?.pending);
 check("the note comes through", pendingA?.note === "Acme Freight · 2 Pallet · 6 Box", pendingA);
+check("Other is a type of its own", pendingB?.note === "Beta Parts · 3 Bundle · 1 Other", pendingB);
 
 const issue = await call("POST", "/api/mobile/admin/issue", admin, { id: pendingA?.id });
 check("admin issues a code", issue.status === 200, issue);

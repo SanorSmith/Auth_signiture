@@ -8,7 +8,8 @@ import { useT } from "../lang-provider";
 import { ScanInput } from "../scan-input";
 
 // What the form sends for each type: Pallet, Bundle and Box each have their own number.
-const FIELD: Record<DeliveryType, string> = { Pallet: "pallet", Bundle: "bundle", Box: "box" };
+const FIELD: Record<DeliveryType, string> = { Pallet: "pallet", Bundle: "bundle", Box: "box", Other: "other" };
+const NONE: Record<DeliveryType, string> = { Pallet: "", Bundle: "", Box: "", Other: "" };
 const digits = (v: string) => v.replace(/\D/g, "").slice(0, 3);
 
 // A Zebra scanner in keyboard (HID / DataWedge) mode types the digits and presses Enter.
@@ -23,14 +24,14 @@ export function ScanForm() {
   const [mixed, setMixed] = useState(false);
   const [type, setType] = useState<DeliveryType | "">("");
   const [count, setCount] = useState("");
-  const [counts, setCounts] = useState<Record<DeliveryType, string>>({ Pallet: "", Bundle: "", Box: "" });
+  const [counts, setCounts] = useState<Record<DeliveryType, string>>(NONE);
 
   useEffect(() => {
     if (state?.ok) {
       setSupplier("");
       setType("");
       setCount("");
-      setCounts({ Pallet: "", Bundle: "", Box: "" });
+      setCounts(NONE);
       setMixed(false);
     }
     // A short sound confirms what just happened to your scan.
@@ -68,11 +69,11 @@ export function ScanForm() {
         <>
           <fieldset>
             <legend className="label">{t("Type")}</legend>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
               {DELIVERY_TYPES.map((ty) => (
                 <label
                   key={ty}
-                  className={`flex cursor-pointer items-center justify-center rounded-lg border px-2 py-2.5 text-sm font-medium transition ${
+                  className={`flex cursor-pointer items-center justify-center rounded-lg border px-1 py-2.5 text-xs font-medium transition sm:px-2 sm:text-sm ${
                     type === ty ? "border-accent bg-accent-soft text-accent" : "border-line hover:bg-page"
                   }`}
                 >
