@@ -1,4 +1,5 @@
 import { getT } from "@/lib/lang";
+import { plainNote } from "@/lib/codes";
 import { requirePermission } from "@/lib/session";
 import { sql } from "@/lib/db";
 import { AutoRefresh } from "../auto-refresh";
@@ -67,7 +68,7 @@ export default async function ClientPage() {
                 <li key={`${h.vcode}-${h.created_at}`} className="flex items-center justify-between gap-4 px-5 py-3">
                   <div className="min-w-0">
                     <p className="text-xs text-muted">{when(h.created_at)}</p>
-                    {h.note && <p className="truncate text-sm">{t(h.note)}</p>}
+                    {h.note && <p className="truncate text-sm">{t(plainNote(h.note as string))}</p>}
                   </div>
                   <span className="font-mono text-xl font-semibold tracking-widest">{h.vcode.trim()}</span>
                 </li>

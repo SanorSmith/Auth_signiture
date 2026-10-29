@@ -3,7 +3,7 @@ import { getT } from "@/lib/lang";
 import type { T } from "@/lib/i18n";
 import { requirePermission } from "@/lib/session";
 import { sql } from "@/lib/db";
-import { decryptPending } from "@/lib/codes";
+import { decryptPending, plainNote } from "@/lib/codes";
 import { AutoRefresh } from "../auto-refresh";
 import { Shell } from "../shell";
 import { PendingActions, RemoveAction } from "./request-actions";
@@ -43,7 +43,7 @@ function Note({ note, askedBy, issuedBy, t }: { note: string | null; askedBy: st
       )}
       <div>
         <p className="mb-0.5 text-xs font-medium text-muted">{t("Delivery")}</p>
-        {note ? <p>{t(note)}</p> : <p className="text-muted">{t("No delivery details.")}</p>}
+        {note ? <p>{t(plainNote(note))}</p> : <p className="text-muted">{t("No delivery details.")}</p>}
       </div>
     </div>
   );
@@ -107,7 +107,7 @@ export default async function AdminPage() {
                       <span>·</span>
                       <span>{when(r.created_at)}</span>
                     </span>
-                    {r.note && <span className="truncate text-sm font-medium text-accent">{t(r.note)}</span>}
+                    {r.note && <span className="truncate text-sm font-medium text-accent">{t(plainNote(r.note))}</span>}
                   </summary>
                   <Note note={r.note} askedBy={r.email} t={t} />
                 </details>
@@ -131,7 +131,7 @@ export default async function AdminPage() {
                       <span className="block truncate text-xs text-muted">{t("Asked by")} {r.email ?? t("Unknown")}</span>
                       <span className="block truncate text-xs text-muted">{t("Issued by")} {r.issuer ?? t("Unknown")}</span>
                       <span className="block text-xs text-muted">{when(r.created_at)}</span>
-                      {r.note && <span className="block truncate text-sm font-medium text-accent">{t(r.note)}</span>}
+                      {r.note && <span className="block truncate text-sm font-medium text-accent">{t(plainNote(r.note))}</span>}
                     </span>
                     <span className="font-mono text-xl font-semibold tracking-widest">{r.vcode.trim()}</span>
                   </summary>

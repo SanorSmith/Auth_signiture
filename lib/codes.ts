@@ -97,3 +97,14 @@ export function deliveryNote(
   if (parts.length === 0) return { error: "Enter how many pallets, bundles or boxes" };
   return { note: [supplier, ...parts].join(" · ") };
 }
+
+// Requests made before the types had their own numbers read "Acme · 12 colli · Pallet". They are shown as
+// "Acme · 12 Pallet", without the word "colli", and an old Carton is a Box. The stored text is not changed.
+export function plainNote(note: string): string;
+export function plainNote(note: string | null | undefined): string | null | undefined;
+export function plainNote(note: string | null | undefined): string | null | undefined {
+  if (!note) return note;
+  return note
+    .replace(/ · (\d+) colli · (Carton|Pallet|Bundle|Box|Pack|Bag|Crate|Roll|Drum)\b/g, (_, n: string, type: string) => ` · ${n} ${type === "Carton" ? "Box" : type}`)
+    .replace(/ · (\d+) colli\b/g, " · $1");
+}

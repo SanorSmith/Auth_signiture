@@ -1,3 +1,4 @@
+import { plainNote } from "@/lib/codes";
 import { sql } from "@/lib/db";
 import { decryptPending } from "@/lib/codes";
 import { guard, isResponse, json } from "@/lib/mobile";
@@ -39,7 +40,7 @@ export async function GET() {
       id: r.id as number,
       number: numberOf(r.pending_enc as string | null),
       askedBy: (r.email as string | null) ?? null,
-      note: (r.note as string | null) ?? null,
+      note: plainNote((r.note as string | null) ?? null),
       at: new Date(r.created_at as string).getTime(),
     })),
     issued: issued.map((r) => ({
@@ -47,7 +48,7 @@ export async function GET() {
       vcode: String(r.vcode).trim(),
       askedBy: (r.email as string | null) ?? null,
       issuedBy: (r.issuer as string | null) ?? null,
-      note: (r.note as string | null) ?? null,
+      note: plainNote((r.note as string | null) ?? null),
       at: new Date(r.created_at as string).getTime(),
     })),
     totals: { issued: totals[0].issued as number, resets: canSeeResets ? (totals[0].resets as number) : null },

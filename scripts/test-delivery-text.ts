@@ -1,5 +1,5 @@
 // Run: npx tsx scripts/test-delivery-text.ts
-import { deliveryNote } from "../lib/codes";
+import { deliveryNote, plainNote } from "../lib/codes";
 import { translate } from "../lib/i18n";
 
 let failures = 0;
@@ -28,6 +28,15 @@ check("Swedish: the types are translated", translate("sv", "Acme · 2 Pallet · 
 check("Swedish: all three", translate("sv", "Acme · 1 Pallet · 20 Bundle · 300 Box") === "Acme · 1 Pall · 20 Bunt · 300 Kartong");
 check("English stays as it is", translate("en", "Acme · 2 Pallet · 6 Box") === "Acme · 2 Pallet · 6 Box");
 check("an old request still reads in Swedish", translate("sv", "Acme · 12 colli · Pallet") === "Acme · 12 kolli · Pall");
+
+check("an old request loses the word colli", plainNote("Acme · 12 colli · Pallet") === "Acme · 12 Pallet", plainNote("Acme · 12 colli · Pallet"));
+check("an old Carton is shown as a Box", plainNote("Acme · 5 colli · Carton") === "Acme · 5 Box");
+check("an old request without a type keeps its number", plainNote("Acme · 7 colli") === "Acme · 7");
+check("inside a notification text too", plainNote("anna@x.se: Acme · 3 colli · Bundle") === "anna@x.se: Acme · 3 Bundle");
+check("a new request is left alone", plainNote("Acme · 2 Pallet · 6 Box") === "Acme · 2 Pallet · 6 Box");
+check("a free-text note is left alone", plainNote("Dock 4 delivery") === "Dock 4 delivery");
+check("nothing stays nothing", plainNote(null) === null);
+check("and it then reads in Swedish", translate("sv", plainNote("Acme · 12 colli · Pallet")) === "Acme · 12 Pall", translate("sv", plainNote("Acme · 12 colli · Pallet")));
 
 if (failures) {
   console.log(`\n${failures} check(s) failed`);

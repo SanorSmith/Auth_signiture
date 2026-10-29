@@ -1,3 +1,4 @@
+import { plainNote } from "@/lib/codes";
 import { sql } from "@/lib/db";
 import { guard, isResponse, json } from "@/lib/mobile";
 
@@ -20,6 +21,6 @@ export async function GET() {
   return json({
     status,
     vcode: latest?.vcode?.trim() ?? null,
-    history: history.map((h) => ({ vcode: String(h.vcode).trim(), at: new Date(h.created_at as string).getTime(), note: (h.note as string | null) ?? null })),
+    history: history.map((h) => ({ vcode: String(h.vcode).trim(), at: new Date(h.created_at as string).getTime(), note: plainNote((h.note as string | null) ?? null) })),
   });
 }

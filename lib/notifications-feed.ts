@@ -1,4 +1,5 @@
 import { sql } from "./db";
+import { plainNote } from "./codes";
 import { makeT, type Lang } from "./i18n";
 
 type Row = { id: number; kind: string; title: string; body: string; url: string; created_at: string; read_at: string | null };
@@ -9,7 +10,7 @@ const shape = (r: Row, t: (s: string) => string): FeedItem => ({
   id: Number(r.id),
   kind: r.kind,
   title: t(r.title),
-  body: t(r.body),
+  body: t(plainNote(r.body)),
   url: r.url,
   at: new Date(r.created_at).getTime(),
   read: r.read_at !== null,
