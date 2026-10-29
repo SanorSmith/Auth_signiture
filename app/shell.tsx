@@ -18,7 +18,7 @@ export async function Shell({ title, description, user, width = "md", children }
   return (
     <div className="flex min-h-screen flex-col">
       <Header email={user.email} perms={user.perms} />
-      <main className={`mx-auto w-full flex-1 px-3 py-4 sm:px-6 sm:py-8 ${widths[width]}`}>
+      <main className={`mx-auto w-full flex-1 px-3 pb-24 pt-4 sm:px-6 sm:py-8 ${widths[width]}`}>
         <div className="mb-4 sm:mb-6">
           <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{t(title)}</h1>
           {/* The sentence under the title is skipped on small screens to keep the work area in view. */}

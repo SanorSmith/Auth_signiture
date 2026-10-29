@@ -338,6 +338,8 @@ const SV: Record<string, string> = {
 
   Rules: "Regler",
   Settings: "Inställningar",
+  Counter: "Kolli",
+  "Main menu": "Huvudmeny",
   "The reader saw": "Läsaren såg",
   "Add another page": "Lägg till en sida",
   "Remembered rules": "Sparade regler",

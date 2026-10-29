@@ -358,7 +358,7 @@ export function NotificationCenter({ perms }: { perms: Permission[] }) {
       {/* Rendered on the page body: the header's blur effect would otherwise trap fixed banners inside it. */}
       {mounted &&
         createPortal(
-          <div className="fixed inset-x-3 bottom-4 z-30 flex flex-col gap-2 sm:inset-x-auto sm:right-4 sm:w-96">
+          <div className="fixed inset-x-3 bottom-20 z-30 sm:bottom-4 flex flex-col gap-2 sm:inset-x-auto sm:right-4 sm:w-96">
             {locked && (
               <div role="alert" className="card flex items-center gap-3 border-warn/50 bg-warn-soft p-3 shadow-lg">
                 <span className="min-w-0 flex-1 text-sm text-warn">{t("Sound is off until you tap. Phones keep it locked until then.")}</span>
