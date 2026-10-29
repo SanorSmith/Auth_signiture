@@ -54,7 +54,11 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
   const s = await requirePermission("request");
   const code = String(form.get("code") ?? "").trim();
   if (!CODE_RE.test(code)) return { error: "Not a valid 10-digit number" };
-  const delivery = deliveryNote(form.get("supplier"), form.get("colli"), form.get("colliType"));
+  const delivery = deliveryNote(
+    form.get("supplier"),
+    { Pallet: form.get("pallet"), Bundle: form.get("bundle"), Box: form.get("box") },
+    { colli: form.get("colli"), type: form.get("colliType") },
+  );
   if ("error" in delivery) return { error: delivery.error };
   const note: string = delivery.note;
   const h = hashCode(code);

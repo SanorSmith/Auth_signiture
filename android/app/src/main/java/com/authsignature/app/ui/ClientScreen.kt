@@ -28,6 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -49,7 +50,7 @@ import com.authsignature.app.sound.Tone
 import kotlinx.coroutines.launch
 
 private const val SUPPLIER_MAX = 36
-private val COLLI_TYPES = listOf("Carton", "Pallet", "Bundle", "Pack")
+private val DELIVERY_TYPES = listOf("Pallet", "Bundle", "Box")
 
 /** Scan a number, see the code the admin issues for it, and the last three issued codes. */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
@@ -62,16 +63,21 @@ fun ClientScreen() {
 
     var number by remember { mutableStateOf("") }
     var supplier by remember { mutableStateOf("") }
-    var colli by remember { mutableStateOf("") }
-    var colliType by remember { mutableStateOf("") }
+    // Most deliveries are one type: choose it and give its number. A mixed delivery has a number for each type.
+    var mixed by remember { mutableStateOf(false) }
+    var type by remember { mutableStateOf("") }
+    var count by remember { mutableStateOf("") }
+    val counts = remember { mutableStateMapOf("Pallet" to "", "Bundle" to "", "Box" to "") }
     var busy by remember { mutableStateOf(false) }
     var okMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     fun send(code: String) {
         if (busy) return
-        if (supplier.trim().length < 2 || colli.toIntOrNull()?.let { it in 1..9999 } != true || colliType !in COLLI_TYPES) {
-            errorMessage = "Enter the supplier name, the number of colli and choose the colli type first"
+        // The number for each type: the chosen type's number, or one for each type in a mixed delivery.
+        val numbers = if (mixed) counts.mapValues { it.value.toIntOrNull() } else DELIVERY_TYPES.associateWith { if (it == type) count.toIntOrNull() else null }
+        if (supplier.trim().length < 2 || numbers.values.none { (it ?: 0) in 1..999 }) {
+            errorMessage = "Enter the supplier name and how many pallets, bundles or boxes first"
             okMessage = null
             container.signal(Tone.Error)
             return
@@ -87,12 +93,14 @@ fun ClientScreen() {
         errorMessage = null
         scope.launch {
             try {
-                okMessage = container.api.request(code, supplier.trim(), colli, colliType.trim()).message ?: "Request sent, waiting for the admin"
+                okMessage = container.api.request(code, supplier.trim(), numbers["Pallet"], numbers["Bundle"], numbers["Box"]).message ?: "Request sent, waiting for the admin"
                 container.signal(Tone.Sent)
                 number = ""
                 supplier = ""
-                colli = ""
-                colliType = ""
+                count = ""
+                type = ""
+                mixed = false
+                DELIVERY_TYPES.forEach { counts[it] = "" }
                 remote.refresh()
             } catch (e: ApiException) {
                 if (e.unauthorized) container.signOut() else errorMessage = e.message
@@ -134,29 +142,42 @@ fun ClientScreen() {
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
-                    value = colli,
-                    onValueChange = { colli = it.filter(Char::isDigit).take(4) },
-                    label = { Text("Number of colli") },
-                    placeholder = { Text("How many packages?") },
-                    singleLine = true,
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text("Colli type", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                androidx.compose.foundation.layout.FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    COLLI_TYPES.forEach { type ->
-                        androidx.compose.material3.FilterChip(
-                            selected = colliType == type,
-                            onClick = { colliType = type },
-                            label = { Text(type) },
+                if (!mixed) {
+                    Text("Type", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    androidx.compose.foundation.layout.FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        DELIVERY_TYPES.forEach { ty ->
+                            androidx.compose.material3.FilterChip(selected = type == ty, onClick = { type = ty }, label = { Text(ty) })
+                        }
+                    }
+                    OutlinedTextField(
+                        value = count,
+                        onValueChange = { count = it.filter(Char::isDigit).take(3) },
+                        label = { Text("Number") },
+                        placeholder = { Text("How many?") },
+                        singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    Text("How many of each type?", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    DELIVERY_TYPES.forEach { ty ->
+                        OutlinedTextField(
+                            value = counts[ty] ?: "",
+                            onValueChange = { counts[ty] = it.filter(Char::isDigit).take(3) },
+                            label = { Text(ty) },
+                            placeholder = { Text("0") },
+                            singleLine = true,
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
+                androidx.compose.material3.TextButton(onClick = { mixed = !mixed }) { Text(if (mixed) "Only one type" else "Mixed delivery") }
                 ScanNumberField(number, { number = it }, { send(number) }, focus)
                 okMessage?.let { SuccessNote(it) }
                 errorMessage?.let { ErrorNote(it) }

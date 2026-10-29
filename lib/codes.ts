@@ -51,32 +51,49 @@ export function vcodeFromCounter(counter: number) {
   return letter + String(i % DIGITS).padStart(5, "0");
 }
 
-// A request must say who delivers, how many colli (packages) and what type they are. They are kept
-// together in the request's note, which is what the admin sees. Only these four types exist; they are
-// stored in English and shown in the person's language (Kartong, Pall, Bunt, Pak in Swedish).
+// A request must say who delivers and what: how many pallets, bundles and boxes. Most deliveries are
+// one type; a mixed delivery has a number for each. They are kept together in the request's note,
+// which is what the admin sees, for example "Acme Freight · 2 Pallet · 6 Box". The types are stored in
+// English and shown in the person's language (Pall, Bunt, Kartong in Swedish).
 export const SUPPLIER_MAX = 36;
-export const COLLI_MAX = 9999;
-export const COLLI_TYPES = ["Carton", "Pallet", "Bundle", "Pack"] as const;
-export type ColliType = (typeof COLLI_TYPES)[number];
+export const COUNT_MAX = 999;
+export const DELIVERY_TYPES = ["Pallet", "Bundle", "Box"] as const;
+export type DeliveryType = (typeof DELIVERY_TYPES)[number];
 
-const TYPE_ALIASES: Record<string, ColliType> = {
-  carton: "Carton", kartong: "Carton",
+// Older versions of the app sent one number and one type; these words still map to a type.
+const LEGACY_TYPES: Record<string, string> = {
   pallet: "Pallet", pall: "Pallet",
   bundle: "Bundle", bunt: "Bundle",
+  box: "Box", carton: "Box", kartong: "Box", lada: "Box", låda: "Box",
   pack: "Pack", pak: "Pack",
 };
 
 const tidy = (v: unknown) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
 
-export function deliveryNote(supplierRaw: unknown, colliRaw: unknown, typeRaw: unknown): { note: string } | { error: string } {
+export function deliveryNote(
+  supplierRaw: unknown,
+  counts: Partial<Record<DeliveryType, unknown>>,
+  legacy?: { colli?: unknown; type?: unknown },
+): { note: string } | { error: string } {
   const supplier = tidy(supplierRaw);
   if (supplier.length < 2) return { error: "Enter the supplier name" };
   if (supplier.length > SUPPLIER_MAX) return { error: `The supplier name can be at most ${SUPPLIER_MAX} characters` };
-  const colliText = String(colliRaw ?? "").trim();
-  if (!/^\d{1,4}$/.test(colliText) || Number(colliText) < 1 || Number(colliText) > COLLI_MAX) {
-    return { error: `Enter the number of colli, from 1 to ${COLLI_MAX}` };
+
+  const parts: string[] = [];
+  for (const type of DELIVERY_TYPES) {
+    const text = String(counts[type] ?? "").trim();
+    if (text === "" || text === "0") continue;
+    if (!/^\d{1,3}$/.test(text)) return { error: `Each number can be from 1 to ${COUNT_MAX}` };
+    parts.push(`${Number(text)} ${type}`);
   }
-  const type = TYPE_ALIASES[tidy(typeRaw).toLowerCase()];
-  if (!type) return { error: "Choose the colli type: Carton, Pallet, Bundle or Pack" };
-  return { note: `${supplier} · ${Number(colliText)} colli · ${type}` };
+  // An older app: one number and one type.
+  if (parts.length === 0 && String(legacy?.colli ?? "").trim() !== "") {
+    const n = String(legacy?.colli).trim();
+    const type = LEGACY_TYPES[tidy(legacy?.type).toLowerCase()];
+    if (!/^\d{1,3}$/.test(n) || Number(n) < 1) return { error: `Each number can be from 1 to ${COUNT_MAX}` };
+    if (!type) return { error: "Enter how many pallets, bundles or boxes" };
+    parts.push(`${Number(n)} ${type}`);
+  }
+  if (parts.length === 0) return { error: "Enter how many pallets, bundles or boxes" };
+  return { note: [supplier, ...parts].join(" · ") };
 }

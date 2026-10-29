@@ -79,7 +79,7 @@ check("client screen starts empty", empty.status === 200 && empty.body?.status =
 
 const invalid = await call("POST", "/api/mobile/request", client, { code: "12345" });
 check("an invalid number is refused", invalid.status === 400, invalid);
-const reqA = await call("POST", "/api/mobile/request", client, { code: NUMBER_A, supplier: "Acme Freight", colli: 12, colliType: "Pallet" });
+const reqA = await call("POST", "/api/mobile/request", client, { code: NUMBER_A, supplier: "Acme Freight", pallet: 2, box: 6 });
 check("client requests a code", reqA.status === 200 && reqA.body?.ok === true, reqA);
 const waiting = await call("GET", "/api/mobile/client", client);
 check("client sees 'waiting'", waiting.body?.status === "waiting", waiting);
@@ -93,22 +93,22 @@ check("a client cannot use the monitor (403)", clientLookup.status === 403, clie
 
 // --- admin handles the requests ------------------------------------------------
 await wait(1500); // notifications are sent after the response
-const noType = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Acme", colli: 2 });
-check("a request without the colli type is refused", noType.status === 400 && /type/i.test(noType.body?.error ?? ""), noType);
-const noSupplier = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, colli: 2, colliType: "Pack" });
+const noNumbers = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Acme" });
+check("a request with no numbers is refused", noNumbers.status === 400 && /pallets, bundles or boxes/i.test(noNumbers.body?.error ?? ""), noNumbers);
+const noSupplier = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, box: 2 });
 check("a request without the supplier is refused", noSupplier.status === 400, noSupplier);
-const badColli = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Acme", colli: 0, colliType: "Pack" });
-const oddType = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Acme", colli: 2, colliType: "Box" });
-check("only Carton, Pallet, Bundle and Pack are accepted as colli type", oddType.status === 400, oddType);
-check("zero colli is refused", badColli.status === 400, badColli);
-const reqB = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Beta Parts", colli: 3, colliType: "Bundle" });
+const tooMany = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Acme", pallet: 1000 });
+check("a number over 999 is refused", tooMany.status === 400, tooMany);
+const oldApp = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Acme", colli: 2, colliType: "Drum" });
+check("an older app sending a type that does not exist is refused", oldApp.status === 400, oldApp);
+const reqB = await call("POST", "/api/mobile/request", client, { code: NUMBER_B, supplier: "Beta Parts", bundle: 3 });
 check("client requests a second code", reqB.status === 200, reqB);
 
 const adminView = await call("GET", "/api/mobile/admin", admin);
 const pendingA = adminView.body?.pending?.find((p) => p.number === NUMBER_A);
 const pendingB = adminView.body?.pending?.find((p) => p.number === NUMBER_B);
 check("admin sees both requests with their numbers", !!pendingA && !!pendingB && pendingA.askedBy === CLIENT.email, adminView.body?.pending);
-check("the note comes through", pendingA?.note === "Acme Freight · 12 colli · Pallet", pendingA);
+check("the note comes through", pendingA?.note === "Acme Freight · 2 Pallet · 6 Box", pendingA);
 
 const issue = await call("POST", "/api/mobile/admin/issue", admin, { id: pendingA?.id });
 check("admin issues a code", issue.status === 200, issue);
