@@ -268,7 +268,7 @@ const SV: Record<string, string> = {
 
 
   // Colli counter
-  "Colli counter": "Kolliräknare",
+  "Delivery counter": "Leveransräknare",
   "Scan each package of one shipment. The package codes are deleted when you finish; only the number is saved.":
     "Skanna varje kolli i en leverans. Kollikoderna raderas när du är klar; bara antalet sparas.",
   Count: "Räkna",
@@ -339,11 +339,11 @@ const SV: Record<string, string> = {
   "The package does not belong to this shipment": "Kollit hör inte till den här leveransen",
   "Count finished": "Räkning klar",
   "The shipment count was saved": "Leveransräkningen sparades",
-  "Count the colli of a shipment by scanning, and see the statistics": "Räkna kolli i en leverans genom att skanna, och se statistiken",
+  "Count the packages of a delivery by scanning them, and see the statistics": "Räkna paketen i en leverans genom att skanna dem, och se statistiken",
 
   Rules: "Regler",
   Settings: "Inställningar",
-  Counter: "Kolli",
+  Counter: "Räknare",
   "Main menu": "Huvudmeny",
   "The reader saw": "Läsaren såg",
   "Add another page": "Lägg till en sida",

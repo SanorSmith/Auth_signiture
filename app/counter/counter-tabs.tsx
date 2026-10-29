@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getT } from "@/lib/lang";
 
-// Count | Statistics, inside the Colli counter tab.
+// Count | Statistics, inside the Delivery counter tab.
 export async function CounterTabs({ current, isAdmin = false }: { current: "count" | "stats" | "rules"; isAdmin?: boolean }) {
   const t = await getT();
   const tab = (active: boolean) =>

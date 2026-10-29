@@ -162,7 +162,7 @@ object Permissions {
         "request" to ("Request codes" to "Scan numbers and see their codes"),
         "monitor" to ("Monitor" to "Look up a code by scanning its number"),
         "manage_requests" to ("Manage requests" to "Generate, deny and remove requests"),
-        "colli_counter" to ("Colli counter" to "Count the colli of a shipment by scanning, and see the statistics"),
+        "colli_counter" to ("Delivery counter" to "Count the packages of a delivery by scanning them, and see the statistics"),
         "create_users" to ("Create accounts" to "Add new users"),
         "reset_passwords" to ("Reset passwords" to "Not for administrators or other user managers"),
         "remove_users" to ("Remove accounts" to "Not for administrators or other user managers"),

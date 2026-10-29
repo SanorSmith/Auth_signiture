@@ -3,7 +3,7 @@ export const PERMISSIONS = [
   { key: "request", label: "Request codes", hint: "Scan numbers and see their codes" },
   { key: "monitor", label: "Monitor", hint: "Look up a code by scanning its number" },
   { key: "manage_requests", label: "Manage requests", hint: "Generate, deny and remove requests" },
-  { key: "colli_counter", label: "Colli counter", hint: "Count the colli of a shipment by scanning, and see the statistics" },
+  { key: "colli_counter", label: "Delivery counter", hint: "Count the packages of a delivery by scanning them, and see the statistics" },
   { key: "create_users", label: "Create accounts", hint: "Add new users" },
   { key: "reset_passwords", label: "Reset passwords", hint: "Not for administrators or other user managers" },
   { key: "remove_users", label: "Remove accounts", hint: "Not for administrators or other user managers" },

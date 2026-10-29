@@ -97,7 +97,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const field = "input py-1.5 text-sm";
   return (
-    <Shell title="Colli counter" description="Shipments counted and colli received, by day, week or month, and compared between two periods." user={s} width="lg">
+    <Shell title="Delivery counter" description="Shipments counted and colli received, by day, week or month, and compared between two periods." user={s} width="lg">
       <CounterTabs current="stats" isAdmin={s.isAdmin} />
       <div className="flex flex-col gap-4">
         <section className="card flex flex-col gap-3 p-4">

@@ -16,7 +16,7 @@ export default async function RulesPage() {
   const keySet = noteReadingConfigured();
   return (
     <Shell
-      title="Colli counter"
+      title="Delivery counter"
       description="What the counter has learned about package codes. Only the shape is kept: the first 3 characters, the length and how many characters must match. Never a whole package code."
       user={s}
       width="lg"

@@ -144,7 +144,7 @@ fun AccountScreen(user: User) {
             }
             AppCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Colli counter", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text("Delivery counter", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     SwitchRow(
                         "Compare with delivery note",
                         "Users photograph the delivery note, an AI model reads the package IDs, and they are compared with the scanned packages. The photo is not stored, and the IDs are removed when the count ends.",

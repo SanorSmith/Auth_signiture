@@ -54,7 +54,7 @@ private enum class Tab(val label: String, val icon: ImageVector) {
     Requests("Requests", Icons.Filled.Inbox),
     Scan("Scan", Icons.Filled.QrCodeScanner),
     Monitor("Monitor", Icons.Filled.Visibility),
-    Counter("Colli counter", Icons.Filled.Inventory2),
+    Counter("Delivery counter", Icons.Filled.Inventory2),
     Users("Users", Icons.Filled.Group),
     Account("Account", Icons.Filled.Person),
 }
