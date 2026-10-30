@@ -43,6 +43,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.authsignature.app.container
 import com.authsignature.app.data.ApiException
@@ -54,7 +57,7 @@ private enum class Tab(val label: String, val icon: ImageVector) {
     Requests("Requests", Icons.Filled.Inbox),
     Scan("Scan", Icons.Filled.QrCodeScanner),
     Monitor("Monitor", Icons.Filled.Visibility),
-    Counter("Delivery counter", Icons.Filled.Inventory2),
+    Counter("Counter", Icons.Filled.Inventory2),
     Users("Users", Icons.Filled.Group),
     Account("Account", Icons.Filled.Person),
 }
@@ -165,7 +168,7 @@ fun MainScaffold(user: User, openUrl: String?, onUrlHandled: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(selected.label, fontWeight = FontWeight.SemiBold) },
+                title = { Text(if (selected == Tab.Counter) "Delivery counter" else selected.label, fontWeight = FontWeight.SemiBold) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
                 actions = {
                     IconButton(onClick = { showNotifications = true }) {
@@ -183,7 +186,18 @@ fun MainScaffold(user: User, openUrl: String?, onUrlHandled: () -> Unit) {
                         selected = tab == selected,
                         onClick = { selectedName = tab.name },
                         icon = { Icon(tab.icon, contentDescription = tab.label) },
-                        label = { Text(tab.label) },
+                        // One short word on one line, the same size on every tab, so the icons line up.
+                        label = {
+                            Text(
+                                if (tab == Tab.Requests && com.authsignature.app.i18n.I18n.lang == "sv") "Inkorg" else tab.label,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center,
+                            )
+                        },
+                        alwaysShowLabel = true,
                     )
                 }
             }
