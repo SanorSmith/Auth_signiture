@@ -21,7 +21,7 @@ import {
   previousRange,
   scannedCodes,
 } from "@/lib/counter";
-import { cleanIds, compareDeliveries, compareSets, noteReadingConfigured, readDeliveryNote } from "@/lib/counter-note";
+import { cleanIds, compareDeliveries, compareSets, sameKey, noteReadingConfigured, readDeliveryNote } from "@/lib/counter-note";
 import { blockedFor, recordFailure } from "@/lib/ratelimit";
 import { guard, isResponse, json, readBody, reply } from "@/lib/mobile";
 
@@ -101,11 +101,11 @@ export async function POST(req: Request, { params }: Ctx) {
       // Tell the reader what the scanned packages look like: two samples and their usual length.
       const only = typeof body.group === "number" ? body.group : null;
       const scanned = await scannedCodes(me.uid, only);
-      let hint = scanned.length ? { samples: [...new Set([scanned[0], scanned[scanned.length - 1]])], length: scanned[0].length } : null;
+      let hint = scanned.length ? { samples: [...new Set([scanned[0], scanned[scanned.length - 1]].map(sameKey))], length: sameKey(scanned[0]).length } : null;
       if (body.group === "all") {
         // A note that lists every delivery: show one sample of each, so the reader looks for all of them.
         const each = (await deliveriesForCompare(me.uid)).filter((d) => d.codes.length > 0);
-        hint = each.length ? { samples: each.slice(0, 5).map((d) => d.codes[0]), length: each[0].codes[0].length } : null;
+        hint = each.length ? { samples: each.slice(0, 5).map((d) => sameKey(d.codes[0])), length: sameKey(each[0].codes[0]).length } : null;
       }
       const reading = await readDeliveryNote(body.image, mediaType, hint);
       return "error" in reading ? reply({ error: reading.error }, 502) : json(reading);

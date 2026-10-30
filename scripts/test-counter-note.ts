@@ -51,6 +51,15 @@ check("a delivery with nothing on the note shows its packages as extra", g.deliv
 check("one rule for merged codes keeps the shared beginning", ruleForCodes([A(1), A(2), A(7)])?.prefix === A(1).length - 3, ruleForCodes([A(1), A(2), A(7)]));
 check("merged codes of different lengths have no rule", ruleForCodes([A(1), "ABCDEFGH"]) === null);
 
+// A scanner reads the pallet label as "00" + the 18-digit SSCC; the note prints the 18 digits.
+const S = (n: number) => `373217102325${String(n).padStart(6, "0")}`;
+let w = compareSets([S(256285), S(257282), S(257312)], ["00" + S(256285), "00" + S(257282), "00" + S(999999)]);
+check("a scan with the 00 prefix matches the note's 18 digits", w.matched.length === 2 && w.missing.join() === S(257312) && w.extra.join() === "00" + S(999999), w);
+w = compareSets(["00" + S(1), S(2)], [S(1), "00" + S(2)]);
+check("and the other way round", w.matched.length === 2 && w.missing.length === 0 && w.extra.length === 0, w);
+w = compareSets([S(257312)], ["00" + S(257313)]);
+check("a misread digit is still found with the prefix", w.possible.length === 1 && w.missing.length === 0, w);
+
 if (failures) {
   console.log(`\n${failures} check(s) failed`);
   process.exit(1);

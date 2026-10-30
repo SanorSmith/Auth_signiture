@@ -58,16 +58,19 @@ const differsByOne = (a: string, b: string) => {
   return d === 1;
 };
 
+// Scanners read a pallet label as "00" + the 18-digit SSCC, while the note prints the 18 digits: the same package.
+export const sameKey = (id: string) => (id.length === 20 && id.startsWith("00") ? id.slice(2) : id);
+
 export function compareSets(noteIds: string[], scanned: string[]): Comparison {
-  const note = new Set(noteIds);
-  const have = new Set(scanned);
-  const matched = noteIds.filter((c) => have.has(c));
-  let missing = noteIds.filter((c) => !have.has(c));
-  let extra = scanned.filter((c) => !note.has(c));
+  const note = new Set(noteIds.map(sameKey));
+  const have = new Set(scanned.map(sameKey));
+  const matched = noteIds.filter((c) => have.has(sameKey(c)));
+  let missing = noteIds.filter((c) => !have.has(sameKey(c)));
+  let extra = scanned.filter((c) => !note.has(sameKey(c)));
   const possible: { note: string; scanned: string }[] = [];
   // One character off is far more likely a misread digit than a real missing-and-extra pair.
   for (const m of [...missing]) {
-    const hit = extra.find((e) => differsByOne(m, e));
+    const hit = extra.find((e) => differsByOne(sameKey(m), sameKey(e)));
     if (hit) {
       possible.push({ note: m, scanned: hit });
       missing = missing.filter((x) => x !== m);
@@ -175,14 +178,16 @@ export type GroupedComparison = {
 // Which delivery does a package ID on the note belong to? The one that already holds it, else the one whose
 // rule it fits best (the longest shared beginning), else none.
 function owner(id: string, deliveries: DeliveryScan[]): DeliveryScan | null {
-  const holder = deliveries.find((d) => d.codes.includes(id));
+  const holder = deliveries.find((d) => d.codes.some((c) => sameKey(c) === sameKey(id)));
   if (holder) return holder;
   let best: { d: DeliveryScan; prefix: number } | null = null;
   for (const d of deliveries) {
     const ref = d.codes[0];
     if (!ref) continue;
-    const rule = d.rule ?? learnRule(ref, id);
-    if (rule && fits(rule, ref, id) && (!best || rule.prefix > best.prefix)) best = { d, prefix: rule.prefix };
+    // A rule learned on "00"-prefixed scans applies to the same codes without the "00".
+    const cut = sameKey(ref) !== ref;
+    const rule = d.rule ? (cut ? { len: d.rule.len - 2, prefix: Math.max(0, d.rule.prefix - 2) } : d.rule) : learnRule(sameKey(ref), sameKey(id));
+    if (rule && fits(rule, sameKey(ref), sameKey(id)) && (!best || rule.prefix > best.prefix)) best = { d, prefix: rule.prefix };
   }
   return best?.d ?? null;
 }
