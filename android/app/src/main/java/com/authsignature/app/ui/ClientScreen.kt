@@ -63,6 +63,7 @@ fun ClientScreen() {
 
     var number by remember { mutableStateOf("") }
     var supplier by remember { mutableStateOf("") }
+    var suggestions by remember { mutableStateOf(listOf<String>()) }
     // Most deliveries are one type: choose it and give its number. A mixed delivery has a number for each type.
     var mixed by remember { mutableStateOf(false) }
     var type by remember { mutableStateOf("") }
@@ -102,6 +103,7 @@ fun ClientScreen() {
                 mixed = false
                 DELIVERY_TYPES.forEach { counts[it] = "" }
                 remote.refresh()
+                runCatching { suggestions = container.api.supplierNames() }
             } catch (e: ApiException) {
                 if (e.unauthorized) container.signOut() else errorMessage = e.message
                 container.signal(Tone.Error)
@@ -111,6 +113,9 @@ fun ClientScreen() {
             }
         }
     }
+
+    // Supplier names used before, and the ones on the allow list, offered while typing.
+    LaunchedEffect(Unit) { runCatching { suggestions = container.api.supplierNames() } }
 
     // A Zebra scanner sends the number straight to the app.
     LaunchedEffect(Unit) {
@@ -142,6 +147,15 @@ fun ClientScreen() {
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                val typed = supplier.trim()
+                val shown = suggestions.filter { it.contains(typed, ignoreCase = true) && !it.equals(typed, ignoreCase = true) }.take(5)
+                if (shown.isNotEmpty()) {
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        shown.forEach { name ->
+                            androidx.compose.material3.SuggestionChip(onClick = { supplier = name.take(SUPPLIER_MAX) }, label = { androidx.compose.material3.Text(name, maxLines = 1) })
+                        }
+                    }
+                }
                 if (!mixed) {
                     Text("Type", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     androidx.compose.foundation.layout.FlowRow(

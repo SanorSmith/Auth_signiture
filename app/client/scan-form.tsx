@@ -15,7 +15,7 @@ const digits = (v: string) => v.replace(/\D/g, "").slice(0, 3);
 // A Zebra scanner in keyboard (HID / DataWedge) mode types the digits and presses Enter.
 // Type the supplier and what is delivered first, then scan: the scan submits the request with them.
 // Most deliveries are one type (choose it, give its number). A mixed delivery shows a number for each type.
-export function ScanForm() {
+export function ScanForm({ suppliers = [] }: { suppliers?: string[] }) {
   const t = useT();
   const [state, action, pending] = useActionState(requestVerification, null);
   const code = useRef<HTMLInputElement>(null);
@@ -60,9 +60,13 @@ export function ScanForm() {
           maxLength={SUPPLIER_MAX}
           required
           autoComplete="off"
+          list="supplier-suggestions"
           placeholder={t("Who delivers?")}
           className="input"
         />
+        <datalist id="supplier-suggestions">
+          {suppliers.map((name) => <option key={name} value={name} />)}
+        </datalist>
       </div>
 
       {!mixed ? (

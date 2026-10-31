@@ -2,6 +2,7 @@ import { getT } from "@/lib/lang";
 import { plainNote } from "@/lib/codes";
 import { requirePermission } from "@/lib/session";
 import { sql } from "@/lib/db";
+import { supplierSuggestions } from "@/lib/suppliers";
 import { AutoRefresh } from "../auto-refresh";
 import { Shell } from "../shell";
 import { ResultTone } from "./result-tone";
@@ -21,6 +22,7 @@ export default async function ClientPage() {
     SELECT v.vcode, v.created_at, c.note FROM codes c
     JOIN verifications v ON v.code_hash = c.code_hash
     WHERE c.client_id = ${s.uid} ORDER BY v.id DESC LIMIT 3`;
+  const suppliers = await supplierSuggestions(s.uid);
   const latest = rows[0] as { vcode: string | null; denied_at: string | null } | undefined;
 
   return (
@@ -29,7 +31,7 @@ export default async function ClientPage() {
       <ResultTone vcode={latest?.vcode?.trim() ?? null} denied={!!latest?.denied_at} />
       <div className="flex flex-col gap-3 sm:gap-5">
         <section className="card p-4 sm:p-6">
-          <ScanForm />
+          <ScanForm suppliers={suppliers} />
         </section>
 
         {/* On a handheld the code sits above the scan form so a scan and its result are both on screen. */}

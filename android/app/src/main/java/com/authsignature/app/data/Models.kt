@@ -170,6 +170,9 @@ data class StatsBlock(
 )
 
 @Serializable
+data class SupplierNames(val suppliers: List<String> = emptyList())
+
+@Serializable
 data class AllowedSupplier(val id: Int, val name: String, val addedBy: String? = null, val at: Long = 0)
 
 @Serializable

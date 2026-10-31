@@ -83,6 +83,8 @@ class Api(private val baseUrl: String, private val token: () -> String?) {
     suspend fun request(code: String, supplier: String, pallet: Int?, bundle: Int?, box: Int?, other: Int?) =
         json.decodeFromString<ActionResult>(call("POST", "/request", obj("code" to code, "supplier" to supplier, "pallet" to pallet, "bundle" to bundle, "box" to box, "other" to other)))
 
+    suspend fun supplierNames() = json.decodeFromString<SupplierNames>(call("GET", "/client/suppliers")).suppliers
+
     suspend fun lookup(code: String): String =
         json.decodeFromString<LookupResult>(call("POST", "/lookup", obj("code" to code))).vcode.orEmpty()
 
