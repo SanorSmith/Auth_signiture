@@ -170,6 +170,12 @@ data class StatsBlock(
 )
 
 @Serializable
+data class AllowedSupplier(val id: Int, val name: String, val addedBy: String? = null, val at: Long = 0)
+
+@Serializable
+data class AllowReply(val suppliers: List<AllowedSupplier> = emptyList())
+
+@Serializable
 data class RequestBucket(val start: String, val requested: Int = 0, val issued: Int = 0, val denied: Int = 0, val removed: Int = 0)
 
 @Serializable

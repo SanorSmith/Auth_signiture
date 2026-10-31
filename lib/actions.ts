@@ -7,6 +7,7 @@ import { authenticate } from "./auth";
 import { later, notifyPermission, notifyUsers, type Notice } from "./notify";
 import { sql } from "./db";
 import { logRequest } from "./request-log";
+import { AUTO_ISSUER, isAllowed } from "./allow-list";
 import { CODE_RE, deliveryNote, encryptPending, hashCode, vcodeFromCounter } from "./codes";
 import { effectivePermissions, homeFor } from "./permissions";
 import { createSession, destroySession, requirePermission } from "./session";
@@ -65,8 +66,10 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
   const h = hashCode(code);
 
   const found = await sql`
-    SELECT c.client_id, c.denied_at, v.vcode FROM codes c
+    SELECT c.id, c.client_id, c.denied_at, v.vcode FROM codes c
     LEFT JOIN verifications v ON v.code_hash = c.code_hash WHERE c.code_hash = ${h}`;
+  // A supplier on the allow list gets its code at once, without an administrator confirming the request.
+  const trusted = await isAllowed(form.get("supplier"));
   if (found.length) {
     // Anyone who may request codes can ask again for a number that has no code yet (waiting, denied, or
     // left by a deleted account): it goes to the admin, who decides whether to issue or deny it again.
@@ -83,6 +86,7 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
       revalidatePath("/client");
       revalidatePath("/admin");
       await logRequest("requested", s.uid, s.email, null);
+      if (trusted && (await issueById(found[0].id as number, null, AUTO_ISSUER))) return { ok: "Verification code shown below" };
       announce(s.uid, s.email, note);
       return { ok: "Request sent again, waiting for the admin" };
     }
@@ -98,6 +102,7 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
   revalidatePath("/client");
   if (ins.length) {
     await logRequest("requested", s.uid, s.email, null);
+    if (trusted && (await issueById(ins[0].id as number, null, AUTO_ISSUER))) return { ok: "Verification code shown below" };
     announce(s.uid, s.email, note);
   }
   return ins.length ? { ok: "Request sent, waiting for the admin" } : { error: "This number has already been requested" };
@@ -124,36 +129,43 @@ async function makeRoom(vcode: string) {
   }
 }
 
-// Admin: generate the next letter + 5 digit code for a pending request, then wipe the stored number.
-export async function issueRequest(form: FormData) {
-  const s = await requirePermission("manage_requests");
-  const id = Number(form.get("id"));
-  if (!Number.isInteger(id)) return;
+// Generates the next letter + 5 digit code for a pending request, then wipes the stored number. Used by an
+// administrator (actorId and email are theirs) and by the allow list (no person: actorId is null).
+async function issueById(id: number, actorId: number | null, actorEmail: string): Promise<boolean> {
   const rows = await sql`
     SELECT c.code_hash, c.client_id, COALESCE(u.email, c.requested_by_email) AS client_email FROM codes c
     LEFT JOIN users u ON u.id = c.client_id
     LEFT JOIN verifications v ON v.code_hash = c.code_hash WHERE c.id = ${id} AND v.id IS NULL AND c.denied_at IS NULL`;
-  if (!rows.length) return;
+  if (!rows.length) return false;
   const [{ n }] = await sql`SELECT nextval('vcode_counter')::float8 AS n`;
   const vcode = vcodeFromCounter(Number(n));
   await makeRoom(vcode);
   const made = await sql`
     INSERT INTO verifications (code_hash, vcode, issued_by, issued_by_email)
-    VALUES (${rows[0].code_hash}, ${vcode}, ${s.uid}, ${s.email})
+    VALUES (${rows[0].code_hash}, ${vcode}, ${actorId}, ${actorEmail})
     ON CONFLICT (code_hash) DO NOTHING RETURNING id`;
   // Two admins pressing Generate at once: the database allows one code per number, so the second does nothing.
-  if (!made.length) return;
+  if (!made.length) return false;
   await sql`UPDATE codes SET pending_enc = NULL WHERE id = ${id}`;
-  await logRequest("issued", rows[0].client_id as number | null, rows[0].client_email as string | null, s.email);
+  await logRequest("issued", rows[0].client_id as number | null, rows[0].client_email as string | null, actorEmail);
   revalidatePath("/admin");
   revalidatePath("/client");
   // The code itself is not put in the notification, so it never shows on a lock screen.
-  tellRequester(rows[0].client_id, s.uid, {
+  tellRequester(rows[0].client_id, actorId ?? 0, {
     kind: "code_issued",
     title: "Your verification code is ready",
-    body: "The admin issued the code for your request.",
+    body: actorId === null ? "The code for your request was issued at once." : "The admin issued the code for your request.",
     url: "/client",
   });
+  return true;
+}
+
+// Admin: generate the code for a pending request.
+export async function issueRequest(form: FormData) {
+  const s = await requirePermission("manage_requests");
+  const id = Number(form.get("id"));
+  if (!Number.isInteger(id)) return;
+  await issueById(id, s.uid, s.email);
 }
 
 // Admin: refuse a pending request. The stored number is wiped; the client sees it was denied.

@@ -47,9 +47,10 @@ fun RequestsTab(isAdmin: Boolean) {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = page == 0, onClick = { page = 0 }, label = { Text("Requests") })
                 FilterChip(selected = page == 1, onClick = { page = 1 }, label = { Text("Statistics") })
+                FilterChip(selected = page == 2, onClick = { page = 2 }, label = { Text("Allow list") })
             }
         }
-        if (page == 0 || !isAdmin) AdminScreen() else RequestStatsScreen()
+        if (page == 0 || !isAdmin) AdminScreen() else if (page == 1) RequestStatsScreen() else AllowListScreen()
     }
 }
 

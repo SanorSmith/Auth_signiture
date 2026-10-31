@@ -39,7 +39,7 @@ function Note({ note, askedBy, issuedBy, t }: { note: string | null; askedBy: st
       {issuedBy !== undefined && (
         <div>
           <p className="mb-0.5 text-xs font-medium text-muted">{t("Code issued by")}</p>
-          <p className="break-all">{issuedBy ?? t("Unknown")}</p>
+          <p className="break-all">{issuedBy ? t(issuedBy) : t("Unknown")}</p>
         </div>
       )}
       <div>
@@ -131,7 +131,7 @@ export default async function AdminPage() {
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                     <span className="min-w-0">
                       <span className="block truncate text-xs text-muted">{t("Asked by")} {r.email ?? t("Unknown")}</span>
-                      <span className="block truncate text-xs text-muted">{t("Issued by")} {r.issuer ?? t("Unknown")}</span>
+                      <span className="block truncate text-xs text-muted">{t("Issued by")} {r.issuer ? t(r.issuer) : t("Unknown")}</span>
                       <span className="block text-xs text-muted">{when(r.created_at)}</span>
                       {r.note && <span className="block truncate text-sm font-medium text-accent">{t(plainNote(r.note))}</span>}
                     </span>
