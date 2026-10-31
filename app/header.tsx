@@ -24,11 +24,13 @@ export async function Header({ email, perms }: { email: string; perms: Permissio
         <Link href={homeFor(perms)} aria-label={t("Home")} className="shrink-0">
           <Brand />
         </Link>
-        <nav className="hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto sm:flex [scrollbar-width:none] sm:ml-4 sm:gap-1 [&::-webkit-scrollbar]:hidden">
+        <nav className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto lg:ml-4 lg:flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {perms.includes("manage_requests") && <NavLink href="/admin" exact>{t("Requests")}</NavLink>}
           {perms.includes("request") && <NavLink href="/client" exact>{t("Scan")}</NavLink>}
           {perms.includes("monitor") && <NavLink href="/monitor" exact>{t("Monitor")}</NavLink>}
-          {perms.includes("colli_counter") && <NavLink href="/counter">{t("Delivery counter")}</NavLink>}
+          {perms.includes("colli_counter") && <NavLink href="/counter">
+              {t("Delivery counter")}
+            </NavLink>}
           {canManageUsers(perms) && (
             <NavLink href="/admin/users" exact>
               {t("Users")}
@@ -42,9 +44,8 @@ export async function Header({ email, perms }: { email: string; perms: Permissio
         <div className="ml-auto flex shrink-0 items-center gap-2 sm:ml-0 sm:gap-3">
           <LangSwitch />
           <NotificationCenter perms={perms} />
-          <span className="hidden max-w-48 truncate text-xs text-muted md:block">{email}</span>
           <form action={logout}>
-            <button className="btn btn-secondary btn-sm">{t("Log out")}</button>
+            <button title={email} className="btn btn-secondary btn-sm whitespace-nowrap">{t("Log out")}</button>
           </form>
         </div>
       </div>

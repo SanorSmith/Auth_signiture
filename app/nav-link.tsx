@@ -10,7 +10,7 @@ export function NavLink({ href, children, exact = false }: { href: string; child
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`inline-flex shrink-0 items-center rounded-md px-2.5 py-1.5 text-sm font-medium transition sm:px-3 ${
+      className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-md px-2 py-1.5 text-sm font-medium transition lg:px-3 ${
         active ? "bg-accent-soft text-accent" : "text-muted hover:bg-page hover:text-ink"
       }`}
     >

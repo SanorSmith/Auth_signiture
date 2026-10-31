@@ -42,7 +42,7 @@ export function BottomNav({ perms, resets }: { perms: Permission[]; resets: numb
   return (
     <nav
       aria-label={t("Main menu")}
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur lg:hidden"
     >
       <ul className="mx-auto flex max-w-xl items-stretch">
         {items.map((it) => {
