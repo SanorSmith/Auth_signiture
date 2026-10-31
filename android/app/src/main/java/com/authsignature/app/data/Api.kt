@@ -116,6 +116,8 @@ class Api(private val baseUrl: String, private val token: () -> String?) {
 
     // --- admin -------------------------------------------------------------------------------
     suspend fun admin() = json.decodeFromString<AdminState>(call("GET", "/admin"))
+    suspend fun requestStats(unit: String, from: String, to: String, compare: Boolean) =
+        json.decodeFromString<RequestStatsReply>(call("GET", "/admin/stats?unit=$unit&from=$from&to=$to&compare=${if (compare) 1 else 0}"))
     suspend fun issue(id: Int) = call("POST", "/admin/issue", obj("id" to id))
     suspend fun deny(id: Int) = call("POST", "/admin/deny", obj("id" to id))
     suspend fun remove(id: Int) = call("POST", "/admin/remove", obj("id" to id))

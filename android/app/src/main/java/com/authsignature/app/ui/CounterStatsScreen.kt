@@ -37,9 +37,9 @@ import com.authsignature.app.data.StatsReply
 import java.time.LocalDate
 import java.time.ZoneId
 
-private class Preset(val name: String, val unit: String, val days: Int, val thisMonth: Boolean = false, val lastMonth: Boolean = false)
+internal class Preset(val name: String, val unit: String, val days: Int, val thisMonth: Boolean = false, val lastMonth: Boolean = false)
 
-private val PRESETS = listOf(
+internal val PRESETS = listOf(
     Preset("Last 7 days", "day", 7),
     Preset("Last 30 days", "day", 30),
     Preset("This month", "day", 0, thisMonth = true),
@@ -48,7 +48,7 @@ private val PRESETS = listOf(
     Preset("Last 12 months", "month", 365),
 )
 
-private fun rangeFor(p: Preset): Pair<String, String> {
+internal fun rangeFor(p: Preset): Pair<String, String> {
     val today = LocalDate.now(ZoneId.of("Europe/Stockholm"))
     return when {
         p.thisMonth -> today.withDayOfMonth(1).toString() to today.toString()
@@ -118,7 +118,7 @@ fun CounterStatsScreen() {
 }
 
 @Composable
-private fun Kpi(title: String, value: String, before: String?, now: Double, then: Double?) {
+internal fun Kpi(title: String, value: String, before: String?, now: Double, then: Double?) {
     AppCard {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
             Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

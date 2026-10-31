@@ -6,6 +6,7 @@ import { sql } from "@/lib/db";
 import { decryptPending, plainNote } from "@/lib/codes";
 import { AutoRefresh } from "../auto-refresh";
 import { Shell } from "../shell";
+import { AdminTabs } from "./admin-tabs";
 import { PendingActions, RemoveAction } from "./request-actions";
 
 const when = (d: string) => new Date(d).toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", dateStyle: "short", timeStyle: "short" });
@@ -77,6 +78,7 @@ export default async function AdminPage() {
   return (
     <Shell title="Requests" description="Issue verification codes for the numbers clients have scanned." user={s} width="lg">
       <AutoRefresh />
+      <AdminTabs current="requests" isAdmin={s.isAdmin} />
       <div className="flex flex-col gap-6">
         {resets > 0 && (
           <Link href="/admin/users" className="alert alert-warn flex items-center justify-between gap-3 hover:opacity-90">

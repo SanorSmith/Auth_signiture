@@ -46,7 +46,7 @@ export function BottomNav({ perms, resets }: { perms: Permission[]; resets: numb
     >
       <ul className="mx-auto flex max-w-xl items-stretch">
         {items.map((it) => {
-          const active = it.exact ? path === it.href : path === it.href || path.startsWith(`${it.href}/`);
+          const active = it.href === "/admin" ? path === "/admin" || path.startsWith("/admin/stats") : it.exact ? path === it.href : path === it.href || path.startsWith(`${it.href}/`);
           return (
             <li key={it.href} className="min-w-0 flex-1">
               <Link

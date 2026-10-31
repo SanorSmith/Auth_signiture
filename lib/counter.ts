@@ -461,7 +461,7 @@ export const todayStockholm = () => new Date().toLocaleDateString("sv-SE", { tim
 export const addDays = (date: string, n: number) => fmt(new Date(toDate(date).getTime() + n * DAY));
 
 // First day of the day / week (Monday) / month that a date falls in.
-function bucketStart(date: string, unit: Unit): string {
+export function bucketStart(date: string, unit: Unit): string {
   const d = toDate(date);
   if (unit === "day") return date;
   if (unit === "month") return fmt(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)));
@@ -469,7 +469,7 @@ function bucketStart(date: string, unit: Unit): string {
   return fmt(new Date(d.getTime() - back * DAY));
 }
 
-function nextBucket(start: string, unit: Unit): string {
+export function nextBucket(start: string, unit: Unit): string {
   if (unit === "day") return addDays(start, 1);
   if (unit === "week") return addDays(start, 7);
   const d = toDate(start);

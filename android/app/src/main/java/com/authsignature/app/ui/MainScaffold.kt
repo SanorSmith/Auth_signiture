@@ -207,7 +207,7 @@ fun MainScaffold(user: User, openUrl: String?, onUrlHandled: () -> Unit) {
     ) { padding ->
         Box(Modifier.padding(padding)) {
             when (selected) {
-                Tab.Requests -> AdminScreen()
+                Tab.Requests -> RequestsTab(isAdmin = user.isAdmin)
                 Tab.Scan -> ClientScreen()
                 Tab.Monitor -> MonitorScreen()
                 Tab.Counter -> CounterTab(isAdmin = user.isAdmin)

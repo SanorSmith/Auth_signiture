@@ -170,6 +170,28 @@ data class StatsBlock(
 )
 
 @Serializable
+data class RequestBucket(val start: String, val requested: Int = 0, val issued: Int = 0, val denied: Int = 0)
+
+@Serializable
+data class Requester(val email: String, val requested: Int = 0)
+
+@Serializable
+data class RequestStatsBlock(
+    val unit: String = "day",
+    val from: String = "",
+    val to: String = "",
+    val buckets: List<RequestBucket> = emptyList(),
+    val requested: Int = 0,
+    val issued: Int = 0,
+    val denied: Int = 0,
+    val waiting: Int = 0,
+    val requesters: List<Requester> = emptyList(),
+)
+
+@Serializable
+data class RequestStatsReply(val current: RequestStatsBlock, val compare: RequestStatsBlock? = null)
+
+@Serializable
 data class StatsReply(val current: StatsBlock, val compare: StatsBlock? = null)
 
 /** What each permission is called on screen. The keys match the server's. */
