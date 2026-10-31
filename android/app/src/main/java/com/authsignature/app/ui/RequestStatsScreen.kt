@@ -95,10 +95,12 @@ fun RequestStatsScreen() {
                 Kpi("Requested", a.requested.toString(), b?.requested?.toString(), a.requested.toDouble(), b?.requested?.toDouble())
                 Kpi("Codes issued", a.issued.toString(), b?.issued?.toString(), a.issued.toDouble(), b?.issued?.toDouble())
                 Kpi("Denied requests", a.denied.toString(), b?.denied?.toString(), a.denied.toDouble(), b?.denied?.toDouble())
+                Kpi("Removed requests", a.removed.toString(), b?.removed?.toString(), a.removed.toDouble(), b?.removed?.toDouble())
                 Text("${a.waiting} waiting for a code right now.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 BarsCard("Requested", a, b) { it.requested }
                 BarsCard("Codes issued", a, b) { it.issued }
                 BarsCard("Denied requests", a, b) { it.denied }
+                BarsCard("Removed requests", a, b) { it.removed }
                 if (a.requesters.isNotEmpty()) {
                     AppCard {
                         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -113,7 +115,7 @@ fun RequestStatsScreen() {
                     }
                 }
                 Text(
-                    "Counted from the requests that exist now: a request an administrator removed is not included.",
+                    "Counted from a permanent log: removing a request or an account does not change these figures.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

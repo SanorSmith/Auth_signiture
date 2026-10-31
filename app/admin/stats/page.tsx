@@ -8,7 +8,7 @@ import { Shell } from "../../shell";
 import { AdminTabs } from "../admin-tabs";
 
 type Search = { unit?: string; from?: string; to?: string; cmpFrom?: string; cmpTo?: string; compare?: string | string[] };
-type Pick = "requested" | "issued" | "denied";
+type Pick = "requested" | "issued" | "denied" | "removed";
 
 const label = (start: string, unit: Unit) => (unit === "month" ? start.slice(0, 7) : start.slice(5));
 
@@ -98,7 +98,7 @@ export default async function RequestStatsPage({ searchParams }: { searchParams:
 
   const field = "input py-1.5 text-sm";
   return (
-    <Shell title="Requests" description="How many codes were requested, issued and denied, by day, week or month, and compared between two periods." user={s} width="lg">
+    <Shell title="Requests" description="How many codes were requested, issued, denied and removed, by day, week or month, and compared between two periods." user={s} width="lg">
       <AdminTabs current="stats" isAdmin={s.isAdmin} />
       <div className="flex flex-col gap-4">
         <section className="card flex flex-col gap-3 p-4">
@@ -136,16 +136,18 @@ export default async function RequestStatsPage({ searchParams }: { searchParams:
           </p>
         </section>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Kpi title={t("Requested")} value={a.requested} before={b ? b.requested : null} t={t} />
           <Kpi title={t("Codes issued")} value={a.issued} before={b ? b.issued : null} t={t} />
           <Kpi title={t("Denied requests")} value={a.denied} before={b ? b.denied : null} t={t} />
+          <Kpi title={t("Removed requests")} value={a.removed} before={b ? b.removed : null} t={t} />
         </div>
         <p className="text-sm text-muted">{t(`${a.waiting} waiting for a code right now.`)}</p>
 
         <Chart title={t("Requested")} a={a} b={b} pick="requested" t={t} />
         <Chart title={t("Codes issued")} a={a} b={b} pick="issued" t={t} />
         <Chart title={t("Denied requests")} a={a} b={b} pick="denied" t={t} />
+        <Chart title={t("Removed requests")} a={a} b={b} pick="removed" t={t} />
 
         {a.requesters.length > 0 && (
           <section className="card p-4">
@@ -168,7 +170,8 @@ export default async function RequestStatsPage({ searchParams }: { searchParams:
                 <th className="px-4 py-2 font-medium">{t("Period")}</th>
                 <th className="px-2 py-2 text-right font-medium">{t("Requested")}</th>
                 <th className="px-2 py-2 text-right font-medium">{t("Codes issued")}</th>
-                <th className="px-4 py-2 text-right font-medium">{t("Denied requests")}</th>
+                <th className="px-2 py-2 text-right font-medium">{t("Denied requests")}</th>
+                <th className="px-4 py-2 text-right font-medium">{t("Removed requests")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line tabular-nums">
@@ -177,13 +180,14 @@ export default async function RequestStatsPage({ searchParams }: { searchParams:
                   <td className="px-4 py-1.5">{x.start}</td>
                   <td className="px-2 py-1.5 text-right">{x.requested}</td>
                   <td className="px-2 py-1.5 text-right">{x.issued}</td>
-                  <td className="px-4 py-1.5 text-right">{x.denied}</td>
+                  <td className="px-2 py-1.5 text-right">{x.denied}</td>
+                  <td className="px-4 py-1.5 text-right">{x.removed}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </section>
-        <p className="text-xs text-muted">{t("Counted from the requests that exist now: a request an administrator removed is not included.")}</p>
+        <p className="text-xs text-muted">{t("Counted from a permanent log: removing a request or an account does not change these figures.")}</p>
       </div>
     </Shell>
   );

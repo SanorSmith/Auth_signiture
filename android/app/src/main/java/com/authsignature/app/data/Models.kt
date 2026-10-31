@@ -170,7 +170,7 @@ data class StatsBlock(
 )
 
 @Serializable
-data class RequestBucket(val start: String, val requested: Int = 0, val issued: Int = 0, val denied: Int = 0)
+data class RequestBucket(val start: String, val requested: Int = 0, val issued: Int = 0, val denied: Int = 0, val removed: Int = 0)
 
 @Serializable
 data class Requester(val email: String, val requested: Int = 0)
@@ -184,6 +184,7 @@ data class RequestStatsBlock(
     val requested: Int = 0,
     val issued: Int = 0,
     val denied: Int = 0,
+    val removed: Int = 0,
     val waiting: Int = 0,
     val requesters: List<Requester> = emptyList(),
 )
