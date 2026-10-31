@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { authenticate } from "./auth";
 import { later, notifyPermission, notifyUsers, type Notice } from "./notify";
 import { sql } from "./db";
+import { logRequest } from "./request-log";
 import { CODE_RE, deliveryNote, encryptPending, hashCode, vcodeFromCounter } from "./codes";
 import { effectivePermissions, homeFor } from "./permissions";
 import { createSession, destroySession, requirePermission } from "./session";
@@ -81,6 +82,7 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
         WHERE code_hash = ${h}`;
       revalidatePath("/client");
       revalidatePath("/admin");
+      await logRequest("requested", s.uid, s.email, null);
       announce(s.uid, s.email, note);
       return { ok: "Request sent again, waiting for the admin" };
     }
@@ -94,7 +96,10 @@ export async function requestVerification(_: State, form: FormData): Promise<Sta
     VALUES (${h}, ${s.uid}, ${s.email}, ${encryptPending(code)}, ${note})
     ON CONFLICT (code_hash) DO NOTHING RETURNING id`;
   revalidatePath("/client");
-  if (ins.length) announce(s.uid, s.email, note);
+  if (ins.length) {
+    await logRequest("requested", s.uid, s.email, null);
+    announce(s.uid, s.email, note);
+  }
   return ins.length ? { ok: "Request sent, waiting for the admin" } : { error: "This number has already been requested" };
 }
 
@@ -125,7 +130,8 @@ export async function issueRequest(form: FormData) {
   const id = Number(form.get("id"));
   if (!Number.isInteger(id)) return;
   const rows = await sql`
-    SELECT c.code_hash, c.client_id FROM codes c
+    SELECT c.code_hash, c.client_id, COALESCE(u.email, c.requested_by_email) AS client_email FROM codes c
+    LEFT JOIN users u ON u.id = c.client_id
     LEFT JOIN verifications v ON v.code_hash = c.code_hash WHERE c.id = ${id} AND v.id IS NULL AND c.denied_at IS NULL`;
   if (!rows.length) return;
   const [{ n }] = await sql`SELECT nextval('vcode_counter')::float8 AS n`;
@@ -138,6 +144,7 @@ export async function issueRequest(form: FormData) {
   // Two admins pressing Generate at once: the database allows one code per number, so the second does nothing.
   if (!made.length) return;
   await sql`UPDATE codes SET pending_enc = NULL WHERE id = ${id}`;
+  await logRequest("issued", rows[0].client_id as number | null, rows[0].client_email as string | null, s.email);
   revalidatePath("/admin");
   revalidatePath("/client");
   // The code itself is not put in the notification, so it never shows on a lock screen.
@@ -158,10 +165,11 @@ export async function denyRequest(_: State, form: FormData): Promise<State> {
     UPDATE codes SET denied_at = now(), pending_enc = NULL
     WHERE id = ${id} AND denied_at IS NULL
       AND NOT EXISTS (SELECT 1 FROM verifications v WHERE v.code_hash = codes.code_hash)
-    RETURNING id, client_id`;
+    RETURNING id, client_id, COALESCE((SELECT email FROM users WHERE id = codes.client_id), requested_by_email) AS client_email`;
   revalidatePath("/admin");
   revalidatePath("/client");
   if (rows.length) {
+    await logRequest("denied", rows[0].client_id as number | null, rows[0].client_email as string | null, me.email);
     tellRequester(rows[0].client_id, me.uid, {
       kind: "request_denied",
       title: "Your request was denied",
@@ -177,8 +185,11 @@ export async function removeRequest(_: State, form: FormData): Promise<State> {
   const me = await requirePermission("manage_requests");
   const id = Number(form.get("id"));
   if (!Number.isInteger(id)) return { error: "Invalid request" };
-  const rows = await sql`SELECT code_hash, client_id FROM codes WHERE id = ${id}`;
+  const rows = await sql`
+    SELECT c.code_hash, c.client_id, COALESCE(u.email, c.requested_by_email) AS client_email FROM codes c
+    LEFT JOIN users u ON u.id = c.client_id WHERE c.id = ${id}`;
   if (!rows.length) return { error: "Request not found" };
+  await logRequest("removed", rows[0].client_id as number | null, rows[0].client_email as string | null, me.email);
   await sql`DELETE FROM verifications WHERE code_hash = ${rows[0].code_hash}`;
   await sql`DELETE FROM codes WHERE id = ${id}`;
   revalidatePath("/admin");
