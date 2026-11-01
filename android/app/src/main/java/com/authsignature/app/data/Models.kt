@@ -173,10 +173,10 @@ data class StatsBlock(
 data class SupplierNames(val suppliers: List<String> = emptyList())
 
 @Serializable
-data class AllowedSupplier(val id: Int, val name: String, val addedBy: String? = null, val at: Long = 0)
+data class AllowedSupplier(val id: Int, val name: String, val addedBy: String? = null, val at: Long = 0, val active: Boolean = true)
 
 @Serializable
-data class AllowReply(val suppliers: List<AllowedSupplier> = emptyList())
+data class AllowReply(val suppliers: List<AllowedSupplier> = emptyList(), val enabled: Boolean = true)
 
 @Serializable
 data class RequestBucket(val start: String, val requested: Int = 0, val issued: Int = 0, val denied: Int = 0, val removed: Int = 0)
