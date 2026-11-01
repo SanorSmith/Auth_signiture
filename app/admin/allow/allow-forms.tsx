@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import { addSupplier, removeSupplier } from "@/lib/allow-actions";
+import { addSupplier, pauseSupplier, removeSupplier, switchAutoCodes } from "@/lib/allow-actions";
 import { signal } from "@/lib/tones";
 import { useActionTone } from "@/lib/use-action-tone";
 import { useT } from "../../lang-provider";
@@ -41,5 +41,36 @@ export function RemoveSupplier({ id }: { id: number }) {
     </form>
   ) : (
     <button type="button" onClick={() => setConfirming(true)} className="btn btn-danger-ghost btn-sm">{t("Remove")}</button>
+  );
+}
+
+// Pause or resume one supplier: a paused supplier's requests wait for you again.
+export function SupplierSwitch({ id, active }: { id: number; active: boolean }) {
+  const t = useT();
+  const [state, save, saving] = useActionState(pauseSupplier, null);
+  useActionTone(state, "done", true);
+  return (
+    <form action={save}>
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="active" value={active ? "0" : "1"} />
+      <button disabled={saving} className="btn btn-secondary btn-sm">{active ? t("Pause") : t("Activate")}</button>
+    </form>
+  );
+}
+
+// The master switch: while automatic codes are paused, every request waits for an administrator.
+export function AutoCodesSwitch({ on }: { on: boolean }) {
+  const t = useT();
+  const [state, save, saving] = useActionState(switchAutoCodes, null);
+  useActionTone(state, "done", true);
+  return (
+    <form action={save} className={`card flex flex-wrap items-center justify-between gap-3 p-4 ${on ? "" : "border-warn/60"}`}>
+      <input type="hidden" name="on" value={on ? "0" : "1"} />
+      <div className="min-w-0">
+        <p className="font-medium">{on ? t("Automatic codes are on") : t("Automatic codes are paused")}</p>
+        <p className="text-xs text-muted">{on ? t("Requests from suppliers on the list get their code at once.") : t("Every request waits for you to confirm it.")}</p>
+      </div>
+      <button disabled={saving} className={`btn btn-sm ${on ? "btn-secondary" : "btn-primary"}`}>{on ? t("Pause all") : t("Resume")}</button>
+    </form>
   );
 }

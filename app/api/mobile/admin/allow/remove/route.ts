@@ -1,4 +1,4 @@
-import { listAllowed, removeAllowed } from "@/lib/allow-list";
+import { autoCodesOn, listAllowed, removeAllowed } from "@/lib/allow-list";
 import { guard, isResponse, json, readBody, reply } from "@/lib/mobile";
 
 export async function POST(req: Request) {
@@ -8,5 +8,5 @@ export async function POST(req: Request) {
   const { id } = await readBody<{ id?: number }>(req);
   if (!Number.isInteger(id)) return reply({ error: "Invalid request" }, 400);
   await removeAllowed(id as number);
-  return json({ suppliers: await listAllowed() });
+  return json({ suppliers: await listAllowed(), enabled: await autoCodesOn() });
 }
