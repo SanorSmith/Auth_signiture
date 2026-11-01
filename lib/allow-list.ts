@@ -2,7 +2,9 @@ import { sql } from "./db";
 import { SUPPLIER_MAX } from "./codes";
 
 // Suppliers whose requests get their code at once, without an administrator confirming each one.
-// A supplier is on the list when its name, ignoring capital letters and extra spaces, is the same.
+// A request is accepted when one word of its supplier name is a word of a name on the list ("Acme" on the
+// list accepts "Acme Freight AB" and "Nordic Acme"). Capital letters and punctuation do not matter. Company
+// forms such as AB or GmbH do not count as a match on their own, or every "... AB" would be accepted.
 // The request still stays in the history, and an administrator can remove it afterwards.
 
 export const ALLOW_MAX = 200;
@@ -10,6 +12,28 @@ export const AUTO_ISSUER = "Allow list";
 
 const tidy = (v: unknown) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
 export const supplierKey = (v: unknown) => tidy(v).toLocaleLowerCase("sv-SE");
+
+const COMPANY_FORMS = new Set(["ab", "aktiebolag", "hb", "kb", "gmbh", "ag", "ltd", "limited", "llc", "inc", "co", "oy", "as", "bv", "nv", "sa", "srl", "spa", "sarl", "plc"]);
+
+// The words of a supplier name that can match: letters and digits, at least two characters, no company form.
+export function nameWords(name: unknown): string[] {
+  return supplierKey(name)
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w.length >= 2 && !COMPANY_FORMS.has(w));
+}
+
+// The name on the list that accepts this supplier, or null. A name made only of company forms (or too short
+// to have a word) has to be the same as the supplier.
+export function allowedBy(supplier: unknown, names: string[]): string | null {
+  const key = supplierKey(supplier);
+  if (!key) return null;
+  const words = new Set(nameWords(supplier));
+  for (const name of names) {
+    const own = nameWords(name);
+    if (own.length === 0 ? supplierKey(name) === key : own.some((w) => words.has(w))) return name;
+  }
+  return null;
+}
 
 export type AllowedSupplier = { id: number; name: string; addedBy: string | null; at: number };
 
@@ -19,9 +43,9 @@ export async function listAllowed(): Promise<AllowedSupplier[]> {
 }
 
 export async function isAllowed(supplier: unknown): Promise<boolean> {
-  const key = supplierKey(supplier);
-  if (!key) return false;
-  return (await sql`SELECT 1 FROM allowed_suppliers WHERE key = ${key} LIMIT 1`).length > 0;
+  if (!supplierKey(supplier)) return false;
+  const rows = await sql`SELECT name FROM allowed_suppliers`;
+  return allowedBy(supplier, rows.map((r) => r.name as string)) !== null;
 }
 
 export async function addAllowed(nameRaw: unknown, byEmail: string): Promise<{ error: string } | { ok: true }> {

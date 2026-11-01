@@ -290,7 +290,7 @@ internal val SHARED_SV: Map<String, String> = mapOf(
     "Adding…" to "Lägger till…",
     "Added" to "Tillagd",
     "Remove this supplier from the list?" to "Ta bort leverantören från listan?",
-    "The name must be written the same way in the request. Capital letters and extra spaces do not matter." to "Namnet måste skrivas likadant i begäran. Stora och små bokstäver och extra mellanslag spelar ingen roll.",
+    "A request is accepted when one word of its supplier name is a word in a name on the list. Capital letters do not matter, and AB, GmbH and similar do not count as a word." to "En begäran godkänns när ett ord i leverantörens namn finns som ord i ett namn på listan. Stora och små bokstäver spelar ingen roll, och AB, GmbH och liknande räknas inte som ord.",
     "No suppliers on the list. Every request waits for you." to "Inga leverantörer på listan. Varje begäran väntar på dig.",
     "This supplier is already on the list" to "Leverantören finns redan på listan",
     "The list is full" to "Listan är full",

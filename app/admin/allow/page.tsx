@@ -16,7 +16,7 @@ export default async function AllowListPage() {
       <AdminTabs current="allow" isAdmin={s.isAdmin} />
       <div className="flex flex-col gap-4">
         <AddSupplier />
-        <p className="text-xs text-muted">{t("The name must be written the same way in the request. Capital letters and extra spaces do not matter.")}</p>
+        <p className="text-xs text-muted">{t("A request is accepted when one word of its supplier name is a word in a name on the list. Capital letters do not matter, and AB, GmbH and similar do not count as a word.")}</p>
         <section className="card divide-y divide-line">
           {list.length === 0 && <p className="p-6 text-center text-sm text-muted">{t("No suppliers on the list. Every request waits for you.")}</p>}
           {list.map((x) => (

@@ -331,7 +331,7 @@ const SV: Record<string, string> = {
   "Adding…": "Lägger till…",
   Added: "Tillagd",
   "Remove this supplier from the list?": "Ta bort leverantören från listan?",
-  "The name must be written the same way in the request. Capital letters and extra spaces do not matter.": "Namnet måste skrivas likadant i begäran. Stora och små bokstäver och extra mellanslag spelar ingen roll.",
+  "A request is accepted when one word of its supplier name is a word in a name on the list. Capital letters do not matter, and AB, GmbH and similar do not count as a word.": "En begäran godkänns när ett ord i leverantörens namn finns som ord i ett namn på listan. Stora och små bokstäver spelar ingen roll, och AB, GmbH och liknande räknas inte som ord.",
   "No suppliers on the list. Every request waits for you.": "Inga leverantörer på listan. Varje begäran väntar på dig.",
   "This supplier is already on the list": "Leverantören finns redan på listan",
   "The list is full": "Listan är full",

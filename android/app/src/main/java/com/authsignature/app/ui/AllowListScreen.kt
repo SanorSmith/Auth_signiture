@@ -106,7 +106,7 @@ fun AllowListScreen() {
                 error?.let { ErrorNote(it) }
                 Button(onClick = { add() }, enabled = !busy && name.isNotBlank(), modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp)) { Text("Add") }
                 Text(
-                    "The name must be written the same way in the request. Capital letters and extra spaces do not matter.",
+                    "A request is accepted when one word of its supplier name is a word in a name on the list. Capital letters do not matter, and AB, GmbH and similar do not count as a word.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
