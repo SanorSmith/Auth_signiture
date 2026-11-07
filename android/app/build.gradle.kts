@@ -14,8 +14,10 @@ android {
         applicationId = "com.authsignature.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 31
-        versionName = "2.16.0"
+        versionCode = 32
+        versionName = "2.17.0"
+        // Phones and Zebra handhelds are ARM; leaving out the PC architectures keeps the bundled text model from doubling the app.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
         buildConfigField("String", "API_BASE", "\"https://auth-signiture.vercel.app\"")
     }
 
@@ -66,6 +68,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    // Reads text from a photo on the phone itself (the model is bundled, so it works offline and without any AI service).
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 

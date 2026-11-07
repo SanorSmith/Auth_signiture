@@ -18,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -28,6 +29,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,7 +46,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.authsignature.app.container
 import com.authsignature.app.data.ApiException
+import com.authsignature.app.data.NoteTableReply
 import com.authsignature.app.data.NoteTableRow
+import com.authsignature.app.ocr.OnDeviceNoteReader
 import com.authsignature.app.sound.Tone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -97,6 +101,19 @@ private fun mergeDuplicates(rows: List<LineRow>, newId: () -> Int): List<LineRow
     return out
 }
 
+/** The Notes tab: the same table, read by the AI service or, to try, by the phone alone (no AI, free, offline). */
+@Composable
+fun NotesTab() {
+    var page by rememberSaveable { mutableStateOf(0) }
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = page == 0, onClick = { page = 0 }, label = { Text("AI reader") })
+            FilterChip(selected = page == 1, onClick = { page = 1 }, label = { Text("On this phone") })
+        }
+        if (page == 0) NotesScreen(onDevice = false) else NotesScreen(onDevice = true)
+    }
+}
+
 /**
  * Photograph the pages of a delivery note (or choose several photos at once). Each page is read by the AI, and the
  * lines of all pages become one table: copy the item numbers alone, the delivered quantities alone, or everything.
@@ -104,7 +121,7 @@ private fun mergeDuplicates(rows: List<LineRow>, newId: () -> Int): List<LineRow
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun NotesScreen() {
+fun NotesScreen(onDevice: Boolean = false) {
     val context = LocalContext.current
     val container = context.container
     val scope = rememberCoroutineScope()
@@ -119,7 +136,9 @@ fun NotesScreen() {
     val images = remember { HashMap<Int, String>() } // each page's photo as base64, kept only to read it again
     val nextPage = remember { intArrayOf(1) }
     val nextRow = remember { intArrayOf(1) }
-    val gate = remember { Semaphore(2) } // photos read at the same time
+    val gate = remember { Semaphore(if (onDevice) 1 else 2) } // photos read at the same time
+    // Either the AI service on the server, or the phone's own text recognizer: only the reading differs.
+    val readImage: suspend (String) -> NoteTableReply = { image -> if (onDevice) OnDeviceNoteReader.read(image) else container.api.noteTableRead(image) }
 
     val photoFile = remember { File(context.cacheDir, "delivery-note.jpg") }
     val photoUri: Uri = remember { FileProvider.getUriForFile(context, "${context.packageName}.files", photoFile) }
@@ -148,7 +167,7 @@ fun NotesScreen() {
         scope.launch {
             gate.withPermit {
                 try {
-                    val reply = container.api.noteTableRead(image)
+                    val reply = readImage(image)
                     if (!reply.legible || reply.rows.isEmpty()) {
                         place(id, emptyList())
                         patch(id) { it.copy(status = "error", count = 0, error = "No table could be read from this photo. Take a clearer, straight-on photo of the note.") }
@@ -259,6 +278,13 @@ fun NotesScreen() {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (onDevice) {
+                    Text(
+                        "Read on this phone without AI: free and works offline, but it can misread, so check every line.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
                 note?.let { ErrorNote(it) }
                 if (reading) Text("Reading the delivery note…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
 
