@@ -289,7 +289,7 @@ internal val SHARED_SV: Map<String, String> = mapOf(
     "Notes" to "Följesedel",
     "Delivery notes" to "Följesedlar",
     "Read delivery note photos into a table with item numbers and delivered quantities, to copy" to "Läs följesedelsfoton till en tabell med artikelnummer och levererade antal, att kopiera",
-    "Photograph the pages of a delivery note and get one table with the item number, the delivered quantity and the description, to copy." to "Fotografera följesedelns sidor och få en tabell med artikelnummer, levererat antal och beskrivning, att kopiera.",
+    "Photograph the pages of a delivery note and get one table with the item number and the delivered quantity, to copy." to "Fotografera följesedelns sidor och få en tabell med artikelnummer och levererat antal, att kopiera.",
     "Choose photos" to "Välj foton",
     "AI reader" to "AI-läsare",
     "On this phone" to "I telefonen",

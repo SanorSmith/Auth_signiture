@@ -68,7 +68,7 @@ export function NoteTablePanel() {
   const place = (page: number, list: NoteRow[]) =>
     setRows((all) => [
       ...all.filter((r) => r.page < page),
-      ...list.map((r) => ({ ...r, id: nextRow.current++, page })),
+      ...list.map((r) => ({ item: r.item, delivered: r.delivered, description: "", id: nextRow.current++, page })),
       ...all.filter((r) => r.page > page),
     ]);
 
@@ -146,7 +146,7 @@ export function NoteTablePanel() {
   const addRow = () => setRows((all) => [...all, { id: nextRow.current++, page: all.at(-1)?.page ?? 0, item: "", delivered: "", description: "" }]);
   const merge = () => {
     const merged = mergeDuplicates(rows);
-    setRows(merged.map((r) => ({ ...r, id: nextRow.current++, page: 0 })));
+    setRows(merged.map((r) => ({ ...r, description: "", id: nextRow.current++, page: 0 })));
   };
 
   const copy = async (what: string, text: string) => {
@@ -213,7 +213,7 @@ export function NoteTablePanel() {
             <p className="text-sm">
               <span className="font-semibold">{rows.length}</span> {t("lines")} · {t("Total delivered")}: <span className="font-semibold tabular-nums">{Math.round(total * 100) / 100}</span>
             </p>
-            <Copy what="table" text={rows.map((r) => `${r.item}\t${r.delivered}\t${r.description}`).join("\n")} />
+            <Copy what="table" text={rows.map((r) => `${r.item}\t${r.delivered}`).join("\n")} />
           </div>
 
           {dups.size > 0 && (
@@ -225,11 +225,10 @@ export function NoteTablePanel() {
           {odd > 0 && <p className="alert alert-warn text-sm">{odd} {t("lines have a delivered quantity that is not a number. Check them.")}</p>}
 
           <div className="overflow-x-auto">
-            <div className="min-w-[34rem]">
-              <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)_minmax(0,1.6fr)_2rem] items-center gap-2 pb-2 text-xs font-medium text-muted">
+            <div className="min-w-[20rem]">
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2rem] items-center gap-2 pb-2 text-xs font-medium text-muted">
                 <span className="flex items-center justify-between gap-1">{t("Item number")} <Copy what="item" text={column((r) => r.item)} /></span>
                 <span className="flex items-center justify-between gap-1">{t("Delivered")} <Copy what="delivered" text={column((r) => r.delivered)} /></span>
-                <span className="flex items-center justify-between gap-1">{t("Description")} <Copy what="description" text={column((r) => r.description)} /></span>
                 <span />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -237,10 +236,9 @@ export function NoteTablePanel() {
                   const dup = dups.has(norm(r.item));
                   const bad = r.delivered.trim() !== "" && quantity(r.delivered) === null;
                   return (
-                    <div key={r.id} className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)_minmax(0,1.6fr)_2rem] items-center gap-2">
+                    <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2rem] items-center gap-2">
                       <input value={r.item} onChange={(e) => edit(r.id, "item", e.target.value)} aria-label={t("Item number")} className={`input py-1.5 font-mono text-sm ${dup ? "border-warn bg-warn-soft" : ""}`} />
                       <input value={r.delivered} onChange={(e) => edit(r.id, "delivered", e.target.value)} aria-label={t("Delivered")} inputMode="decimal" className={`input py-1.5 text-right font-mono text-sm tabular-nums ${bad ? "border-danger text-danger" : ""}`} />
-                      <input value={r.description} onChange={(e) => edit(r.id, "description", e.target.value)} aria-label={t("Description")} className="input py-1.5 text-sm" />
                       <button type="button" onClick={() => removeRow(r.id)} aria-label={t("Remove line")} className="btn btn-danger-ghost btn-sm px-0">×</button>
                     </div>
                   );

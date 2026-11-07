@@ -6,7 +6,7 @@ import { SavedTablePanel } from "./saved-table-panel";
 export default async function NotesPage() {
   const s = await requirePermission("note_table");
   return (
-    <Shell title="Delivery notes" description="Photograph the pages of a delivery note and get one table with the item number, the delivered quantity and the description, to copy." user={s} width="lg">
+    <Shell title="Delivery notes" description="Photograph the pages of a delivery note and get one table with the item number and the delivered quantity, to copy." user={s} width="lg">
       <div className="flex flex-col gap-6">
         <SavedTablePanel />
         <NoteTablePanel />

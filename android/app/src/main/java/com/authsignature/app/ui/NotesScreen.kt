@@ -155,13 +155,13 @@ fun NotesScreen(onDevice: Boolean = false) {
     val photoFile = remember { File(context.cacheDir, "delivery-note.jpg") }
     val photoUri: Uri = remember { FileProvider.getUriForFile(context, "${context.packageName}.files", photoFile) }
 
-    fun signature(list: List<LineRow>) = list.joinToString("\u0001") { "${it.item}\u0002${it.delivered}\u0002${it.description}" }
+    fun signature(list: List<LineRow>) = list.joinToString("\u0001") { "${it.item}\u0002${it.delivered}" }
 
     suspend fun loadSaved() {
         loadFailed = false
         try {
             val saved = container.api.noteTableSaved().rows
-            rows = saved.map { LineRow(nextRow[0]++, 0, it.item, it.delivered, it.description) }
+            rows = saved.map { LineRow(nextRow[0]++, 0, it.item, it.delivered, "") }
             syncedSig = signature(rows)
             loaded = true
         } catch (e: ApiException) {
@@ -181,7 +181,7 @@ fun NotesScreen(onDevice: Boolean = false) {
             withContext(NonCancellable) {
                 saveLock.withLock {
                     try {
-                        container.api.noteTableSave(rows.map { NoteTableRow(it.item, it.delivered, it.description) })
+                        container.api.noteTableSave(rows.map { NoteTableRow(it.item, it.delivered, "") })
                         syncedSig = sig
                         saveFailed = false
                     } catch (e: ApiException) {
@@ -208,7 +208,7 @@ fun NotesScreen(onDevice: Boolean = false) {
     // The lines of a page go where that page belongs, whatever order the pages finish reading in.
     fun place(page: Int, list: List<NoteTableRow>) {
         rows = rows.filter { it.page < page } +
-            list.map { LineRow(nextRow[0]++, page, it.item, it.delivered, it.description) } +
+            list.map { LineRow(nextRow[0]++, page, it.item, it.delivered, "") } +
             rows.filter { it.page > page }
     }
 
@@ -376,7 +376,7 @@ fun NotesScreen(onDevice: Boolean = false) {
                             Text("${rows.size} lines", fontWeight = FontWeight.SemiBold)
                             Text("Total delivered: $totalText", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        OutlinedButton(onClick = { copy("table", rows.joinToString("\n") { "${it.item}\t${it.delivered}\t${it.description}" }) }, shape = RoundedCornerShape(10.dp)) {
+                        OutlinedButton(onClick = { copy("table", rows.joinToString("\n") { "${it.item}\t${it.delivered}" }) }, shape = RoundedCornerShape(10.dp)) {
                             Text(if (copied == "table") "Copied" else "Copy table")
                         }
                     }
@@ -390,17 +390,13 @@ fun NotesScreen(onDevice: Boolean = false) {
 
                     // Column headings, each with its own Copy: the item numbers alone, the delivered alone, the descriptions alone.
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Column(Modifier.weight(1.3f)) {
+                        Column(Modifier.weight(1f)) {
                             Text("Item number", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             TextButton(onClick = { copy("item", column { it.item }) }) { Text(if (copied == "item") "Copied" else "Copy", maxLines = 1) }
                         }
-                        Column(Modifier.weight(0.8f), horizontalAlignment = Alignment.End) {
+                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
                             Text("Delivered", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             TextButton(onClick = { copy("delivered", column { it.delivered }) }) { Text(if (copied == "delivered") "Copied" else "Copy", maxLines = 1) }
-                        }
-                        Column(Modifier.weight(1.3f)) {
-                            Text("Description", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            TextButton(onClick = { copy("description", column { it.description }) }) { Text(if (copied == "description") "Copied" else "Copy", maxLines = 1) }
                         }
                     }
                     rows.forEach { r ->
@@ -411,16 +407,15 @@ fun NotesScreen(onDevice: Boolean = false) {
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.Top,
                         ) {
-                            androidx.compose.material3.Text(r.item.ifEmpty { "–" }, fontFamily = FontFamily.Monospace, fontSize = 13.sp, modifier = Modifier.weight(1.3f))
+                            androidx.compose.material3.Text(r.item.ifEmpty { "–" }, fontFamily = FontFamily.Monospace, fontSize = 13.sp, modifier = Modifier.weight(1f))
                             androidx.compose.material3.Text(
                                 r.delivered.ifEmpty { "–" },
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 13.sp,
                                 textAlign = TextAlign.End,
                                 color = if (bad) MaterialTheme.colorScheme.error else androidx.compose.ui.graphics.Color.Unspecified,
-                                modifier = Modifier.weight(0.8f),
+                                modifier = Modifier.weight(1f),
                             )
-                            androidx.compose.material3.Text(r.description, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1.3f))
                         }
                     }
                     OutlinedButton(
@@ -468,7 +463,6 @@ fun NotesScreen(onDevice: Boolean = false) {
     editing?.let { line ->
         var item by remember(line.id) { mutableStateOf(line.item) }
         var delivered by remember(line.id) { mutableStateOf(line.delivered) }
-        var description by remember(line.id) { mutableStateOf(line.description) }
         AlertDialog(
             onDismissRequest = { editing = null },
             title = { Text("Edit line") },
@@ -476,7 +470,6 @@ fun NotesScreen(onDevice: Boolean = false) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(value = item, onValueChange = { item = it.take(40) }, label = { Text("Item number") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = delivered, onValueChange = { delivered = it.take(20) }, label = { Text("Delivered") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = description, onValueChange = { description = it.take(120) }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
                     TextButton(onClick = {
                         rows = rows.filter { it.id != line.id }
                         editing = null
@@ -485,7 +478,7 @@ fun NotesScreen(onDevice: Boolean = false) {
             },
             confirmButton = {
                 Button(onClick = {
-                    rows = rows.map { if (it.id == line.id) it.copy(item = item.trim(), delivered = delivered.trim(), description = description.trim()) else it }
+                    rows = rows.map { if (it.id == line.id) it.copy(item = item.trim(), delivered = delivered.trim()) else it }
                     editing = null
                 }) { Text("Save") }
             },
