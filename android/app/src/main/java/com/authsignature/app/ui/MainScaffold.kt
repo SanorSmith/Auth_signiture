@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Inventory2
@@ -53,11 +54,12 @@ import com.authsignature.app.data.User
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private enum class Tab(val label: String, val icon: ImageVector) {
+private enum class Tab(val label: String, val icon: ImageVector, val title: String = label) {
     Requests("Requests", Icons.Filled.Inbox),
     Scan("Scan", Icons.Filled.QrCodeScanner),
     Monitor("Monitor", Icons.Filled.Visibility),
-    Counter("Counter", Icons.Filled.Inventory2),
+    Counter("Counter", Icons.Filled.Inventory2, "Delivery counter"),
+    Notes("Notes", Icons.Filled.Description, "Delivery notes"),
     Users("Users", Icons.Filled.Group),
     Account("Account", Icons.Filled.Person),
 }
@@ -68,6 +70,7 @@ private fun available(u: User) = buildList {
     if (u.can("request")) add(Tab.Scan)
     if (u.can("monitor")) add(Tab.Monitor)
     if (u.can("colli_counter")) add(Tab.Counter)
+    if (u.can("note_table")) add(Tab.Notes)
     if (u.canManageUsers) add(Tab.Users)
     add(Tab.Account)
 }
@@ -168,7 +171,7 @@ fun MainScaffold(user: User, openUrl: String?, onUrlHandled: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (selected == Tab.Counter) "Delivery counter" else selected.label, fontWeight = FontWeight.SemiBold) },
+                title = { Text(selected.title, fontWeight = FontWeight.SemiBold) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
                 actions = {
                     IconButton(onClick = { showNotifications = true }) {
@@ -190,7 +193,7 @@ fun MainScaffold(user: User, openUrl: String?, onUrlHandled: () -> Unit) {
                         label = {
                             Text(
                                 if (tab == Tab.Requests && com.authsignature.app.i18n.I18n.lang == "sv") "Inkorg" else tab.label,
-                                fontSize = 11.sp,
+                                fontSize = if (tabs.size >= 7) 10.sp else 11.sp,
                                 maxLines = 1,
                                 softWrap = false,
                                 overflow = TextOverflow.Ellipsis,
@@ -211,6 +214,7 @@ fun MainScaffold(user: User, openUrl: String?, onUrlHandled: () -> Unit) {
                 Tab.Scan -> ClientScreen()
                 Tab.Monitor -> MonitorScreen()
                 Tab.Counter -> CounterTab(isAdmin = user.isAdmin)
+                Tab.Notes -> NotesScreen()
                 Tab.Users -> UsersScreen()
                 Tab.Account -> AccountScreen(user)
             }

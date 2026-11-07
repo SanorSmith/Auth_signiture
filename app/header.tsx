@@ -24,13 +24,14 @@ export async function Header({ email, perms }: { email: string; perms: Permissio
         <Link href={homeFor(perms)} aria-label={t("Home")} className="shrink-0">
           <Brand />
         </Link>
-        <nav className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto lg:ml-4 lg:flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <nav className="hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto lg:ml-4 lg:flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {perms.includes("manage_requests") && <NavLink href="/admin" exact>{t("Requests")}</NavLink>}
           {perms.includes("request") && <NavLink href="/client" exact>{t("Scan")}</NavLink>}
           {perms.includes("monitor") && <NavLink href="/monitor" exact>{t("Monitor")}</NavLink>}
           {perms.includes("colli_counter") && <NavLink href="/counter">
-              {t("Delivery counter")}
+              {t("Counter")}
             </NavLink>}
+          {perms.includes("note_table") && <NavLink href="/notes">{t("Notes")}</NavLink>}
           {canManageUsers(perms) && (
             <NavLink href="/admin/users" exact>
               {t("Users")}

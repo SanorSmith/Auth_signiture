@@ -110,6 +110,8 @@ class Api(private val baseUrl: String, private val token: () -> String?) {
         json.decodeFromString<CounterState>(call("POST", "/counter/group-merge", obj("from" to from, "into" to into)))
     suspend fun counterGroupRemove(group: Int) =
         json.decodeFromString<CounterState>(call("POST", "/counter/group-remove", obj("group" to group)))
+    suspend fun noteTableRead(imageBase64: String) =
+        json.decodeFromString<NoteTableReply>(call("POST", "/notes/read", obj("image" to imageBase64, "mediaType" to "image/jpeg")))
     suspend fun counterUndo() = json.decodeFromString<CounterState>(call("POST", "/counter/undo"))
     suspend fun counterCancel() = json.decodeFromString<CounterState>(call("POST", "/counter/cancel"))
     suspend fun counterFinish() = json.decodeFromString<FinishedCount>(call("POST", "/counter/finish"))

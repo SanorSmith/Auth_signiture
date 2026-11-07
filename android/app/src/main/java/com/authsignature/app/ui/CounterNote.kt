@@ -52,7 +52,7 @@ import java.io.File
 private enum class Stage { Idle, Reading, Review, Comparing, Result }
 
 /** Reads the photo, turns it upright, shrinks it to 2400 pixels and returns it as base64 text. */
-private fun shrinkPhoto(file: File): String {
+internal fun shrinkPhoto(file: File): String {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeFile(file.path, bounds)
     var sample = 1

@@ -20,6 +20,7 @@ const ICONS = {
   scan: icon(<><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" /><path d="M8 9v6M12 9v6M16 9v6" /></>),
   monitor: icon(<><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="3" /></>),
   counter: icon(<><path d="M12 3 3.5 7.5v9L12 21l8.5-4.5v-9L12 3Z" /><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9" /></>),
+  notes: icon(<><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></>),
   users: icon(<><circle cx="9" cy="8.5" r="3.2" /><path d="M3 19c0-3.2 2.7-5.2 6-5.2s6 2 6 5.2" /><path d="M16 5.6a3.2 3.2 0 0 1 0 5.8M17.5 14.2c2 .6 3.5 2.2 3.5 4.8" /></>),
   account: icon(<><circle cx="12" cy="8.5" r="3.6" /><path d="M4.5 20c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5" /></>),
 };
@@ -36,6 +37,7 @@ export function BottomNav({ perms, resets }: { perms: Permission[]; resets: numb
   if (perms.includes("request")) items.push({ href: "/client", label: t("Scan"), exact: true, icon: ICONS.scan });
   if (perms.includes("monitor")) items.push({ href: "/monitor", label: t("Monitor"), exact: true, icon: ICONS.monitor });
   if (perms.includes("colli_counter")) items.push({ href: "/counter", label: t("Counter"), exact: false, icon: ICONS.counter });
+  if (perms.includes("note_table")) items.push({ href: "/notes", label: t("Notes"), exact: false, icon: ICONS.notes });
   if (canManageUsers(perms)) items.push({ href: "/admin/users", label: t("Users"), exact: true, icon: ICONS.users, badge: resets });
   items.push({ href: "/account", label: t("Account"), exact: true, icon: ICONS.account });
 

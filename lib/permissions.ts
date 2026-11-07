@@ -4,6 +4,7 @@ export const PERMISSIONS = [
   { key: "monitor", label: "Monitor", hint: "Look up a code by scanning its number" },
   { key: "manage_requests", label: "Manage requests", hint: "Generate, deny and remove requests" },
   { key: "colli_counter", label: "Delivery counter", hint: "Count the packages of a delivery by scanning them, and see the statistics" },
+  { key: "note_table", label: "Delivery notes", hint: "Read delivery note photos into a table with item numbers and delivered quantities, to copy" },
   { key: "create_users", label: "Create accounts", hint: "Add new users" },
   { key: "reset_passwords", label: "Reset passwords", hint: "Not for administrators or other user managers" },
   { key: "remove_users", label: "Remove accounts", hint: "Not for administrators or other user managers" },
@@ -35,6 +36,7 @@ export function homeFor(perms: Permission[]) {
   if (perms.includes("request")) return "/client";
   if (perms.includes("monitor")) return "/monitor";
   if (perms.includes("colli_counter")) return "/counter";
+  if (perms.includes("note_table")) return "/notes";
   if (canManageUsers(perms)) return "/admin/users";
   return "/account";
 }

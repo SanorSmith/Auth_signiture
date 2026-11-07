@@ -173,6 +173,18 @@ data class StatsBlock(
 data class SupplierNames(val suppliers: List<String> = emptyList())
 
 @Serializable
+data class NoteTableRow(val item: String = "", val delivered: String = "", val description: String = "")
+
+@Serializable
+data class NoteTableReply(
+    val legible: Boolean = true,
+    val rows: List<NoteTableRow> = emptyList(),
+    val supplier: String? = null,
+    val noteNumber: String? = null,
+    val comment: String? = null,
+)
+
+@Serializable
 data class AllowedSupplier(val id: Int, val name: String, val addedBy: String? = null, val at: Long = 0, val active: Boolean = true)
 
 @Serializable
@@ -211,6 +223,7 @@ object Permissions {
         "monitor" to ("Monitor" to "Look up a code by scanning its number"),
         "manage_requests" to ("Manage requests" to "Generate, deny and remove requests"),
         "colli_counter" to ("Delivery counter" to "Count the packages of a delivery by scanning them, and see the statistics"),
+        "note_table" to ("Delivery notes" to "Read delivery note photos into a table with item numbers and delivered quantities, to copy"),
         "create_users" to ("Create accounts" to "Add new users"),
         "reset_passwords" to ("Reset passwords" to "Not for administrators or other user managers"),
         "remove_users" to ("Remove accounts" to "Not for administrators or other user managers"),

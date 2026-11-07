@@ -13,7 +13,7 @@ const MAX_PAGES = 10;
 const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
 // A photo is shrunk before it is sent, but kept large enough that small print and handwriting stay readable.
-async function shrink(file: File): Promise<string> {
+export async function shrink(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
