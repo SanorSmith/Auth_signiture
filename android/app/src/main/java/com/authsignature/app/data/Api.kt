@@ -62,6 +62,7 @@ class Api(private val baseUrl: String, private val token: () -> String?) {
         is Boolean -> JsonPrimitive(v)
         is Number -> JsonPrimitive(v)
         is List<*> -> JsonArray(v.mapNotNull { toJson(it) })
+        is Map<*, *> -> JsonObject(v.entries.mapNotNull { (k, x) -> toJson(x)?.let { k.toString() to it } }.toMap())
         else -> JsonNull
     }
 
@@ -112,6 +113,10 @@ class Api(private val baseUrl: String, private val token: () -> String?) {
         json.decodeFromString<CounterState>(call("POST", "/counter/group-remove", obj("group" to group)))
     suspend fun noteTableRead(imageBase64: String) =
         json.decodeFromString<NoteTableReply>(call("POST", "/notes/read", obj("image" to imageBase64, "mediaType" to "image/jpeg")))
+    // The table kept in the account (shown on the website too): read it, or replace it with the lines sent (none clears it).
+    suspend fun noteTableSaved() = json.decodeFromString<NoteTableSaved>(call("GET", "/notes/saved"))
+    suspend fun noteTableSave(rows: List<NoteTableRow>) =
+        json.decodeFromString<NoteTableSaved>(call("POST", "/notes/saved", obj("rows" to rows.map { mapOf("item" to it.item, "delivered" to it.delivered, "description" to it.description) })))
     suspend fun counterUndo() = json.decodeFromString<CounterState>(call("POST", "/counter/undo"))
     suspend fun counterCancel() = json.decodeFromString<CounterState>(call("POST", "/counter/cancel"))
     suspend fun counterFinish() = json.decodeFromString<FinishedCount>(call("POST", "/counter/finish"))

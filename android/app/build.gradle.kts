@@ -14,8 +14,8 @@ android {
         applicationId = "com.authsignature.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 32
-        versionName = "2.17.0"
+        versionCode = 33
+        versionName = "2.18.0"
         // Phones and Zebra handhelds are ARM; leaving out the PC architectures keeps the bundled text model from doubling the app.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
         buildConfigField("String", "API_BASE", "\"https://auth-signiture.vercel.app\"")

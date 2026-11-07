@@ -176,6 +176,9 @@ data class SupplierNames(val suppliers: List<String> = emptyList())
 data class NoteTableRow(val item: String = "", val delivered: String = "", val description: String = "")
 
 @Serializable
+data class NoteTableSaved(val rows: List<NoteTableRow> = emptyList())
+
+@Serializable
 data class NoteTableReply(
     val legible: Boolean = true,
     val rows: List<NoteTableRow> = emptyList(),

@@ -26,6 +26,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,7 +54,10 @@ import com.authsignature.app.sound.Tone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -133,6 +137,14 @@ fun NotesScreen(onDevice: Boolean = false) {
     var note by remember { mutableStateOf<String?>(null) }
     var preparing by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<LineRow?>(null) }
+    // "On this phone" keeps its table in the account: loaded when the screen opens, saved after every change, so it
+    // can be copied from the website too. The AI reader keeps nothing.
+    var loaded by remember { mutableStateOf(!onDevice) }
+    var loadFailed by remember { mutableStateOf(false) }
+    var syncedSig by remember { mutableStateOf("") }
+    var saveFailed by remember { mutableStateOf(false) }
+    var confirmRemove by remember { mutableStateOf(false) }
+    val saveLock = remember { Mutex() }
     val images = remember { HashMap<Int, String>() } // each page's photo as base64, kept only to read it again
     val nextPage = remember { intArrayOf(1) }
     val nextRow = remember { intArrayOf(1) }
@@ -142,6 +154,45 @@ fun NotesScreen(onDevice: Boolean = false) {
 
     val photoFile = remember { File(context.cacheDir, "delivery-note.jpg") }
     val photoUri: Uri = remember { FileProvider.getUriForFile(context, "${context.packageName}.files", photoFile) }
+
+    fun signature(list: List<LineRow>) = list.joinToString("\u0001") { "${it.item}\u0002${it.delivered}\u0002${it.description}" }
+
+    suspend fun loadSaved() {
+        loadFailed = false
+        try {
+            val saved = container.api.noteTableSaved().rows
+            rows = saved.map { LineRow(nextRow[0]++, 0, it.item, it.delivered, it.description) }
+            syncedSig = signature(rows)
+            loaded = true
+        } catch (e: ApiException) {
+            if (e.unauthorized) container.signOut() else loadFailed = true
+        } catch (e: Exception) {
+            loadFailed = true
+        }
+    }
+
+    if (onDevice) {
+        LaunchedEffect(Unit) { loadSaved() }
+        // Every change is saved a moment after the last one (not while the table has not been loaded: that would wipe it).
+        val sig = signature(rows)
+        LaunchedEffect(sig, loaded) {
+            if (!loaded || sig == syncedSig) return@LaunchedEffect
+            delay(500)
+            withContext(NonCancellable) {
+                saveLock.withLock {
+                    try {
+                        container.api.noteTableSave(rows.map { NoteTableRow(it.item, it.delivered, it.description) })
+                        syncedSig = sig
+                        saveFailed = false
+                    } catch (e: ApiException) {
+                        if (e.unauthorized) container.signOut() else saveFailed = true
+                    } catch (e: Exception) {
+                        saveFailed = true
+                    }
+                }
+            }
+        }
+    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -262,13 +313,13 @@ fun NotesScreen(onDevice: Boolean = false) {
         AppCard {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Button(onClick = { picker.launch("image/*") }, enabled = pages.size < MAX_PAGES && !preparing, shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f).height(48.dp)) { Text("Choose photos", maxLines = 1) }
+                    Button(onClick = { picker.launch("image/*") }, enabled = pages.size < MAX_PAGES && !preparing && loaded, shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f).height(48.dp)) { Text("Choose photos", maxLines = 1) }
                     OutlinedButton(
                         onClick = {
                             runCatching { photoFile.delete() }
                             camera.launch(photoUri)
                         },
-                        enabled = pages.size < MAX_PAGES && !preparing,
+                        enabled = pages.size < MAX_PAGES && !preparing && loaded,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f).height(48.dp),
                     ) { Text("Take photo", maxLines = 1) }
@@ -284,6 +335,10 @@ fun NotesScreen(onDevice: Boolean = false) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
+                }
+                if (loadFailed) {
+                    ErrorNote("Could not load the saved table. Check your connection.")
+                    TextButton(onClick = { scope.launch { loadSaved() } }) { Text("Try again") }
                 }
                 note?.let { ErrorNote(it) }
                 if (reading) Text("Reading the delivery note…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
@@ -309,7 +364,7 @@ fun NotesScreen(onDevice: Boolean = false) {
                         if (p.status == "error") p.error?.let { ErrorNote(it) }
                     }
                 }
-                if (pages.isNotEmpty()) TextButton(onClick = { clearAll() }, enabled = !reading) { Text("Clear all", color = MaterialTheme.colorScheme.error) }
+                if (pages.isNotEmpty() && !onDevice) TextButton(onClick = { clearAll() }, enabled = !reading) { Text("Clear all", color = MaterialTheme.colorScheme.error) }
             }
         }
 
@@ -373,14 +428,41 @@ fun NotesScreen(onDevice: Boolean = false) {
                         shape = RoundedCornerShape(10.dp),
                     ) { Text("Add line") }
                     Text("Tap a line to fix a mistake.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (onDevice) {
+                        TextButton(onClick = { confirmRemove = true }, enabled = !reading) { Text("Remove the table", color = MaterialTheme.colorScheme.error) }
+                    }
                 }
             }
         }
 
-        if (pages.isEmpty() && !preparing) {
+        if (pages.isEmpty() && rows.isEmpty() && !preparing && loaded) {
             Text("No delivery note read yet. Choose photos or take one to start.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(8.dp))
         }
-        Text("Nothing is saved: the photos and the table are gone when you leave this page.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (onDevice) {
+            if (saveFailed) ErrorNote("The table could not be saved. Check your connection.")
+            Text(
+                "The table is saved in your account: open Delivery notes on the website to copy each column. Add more pages after each other, then remove the table when you are done.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Text("Nothing is saved: the photos and the table are gone when you leave this page.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+
+    if (confirmRemove) {
+        AlertDialog(
+            onDismissRequest = { confirmRemove = false },
+            title = { Text("Remove the table?") },
+            text = { Text("The whole saved table is removed here and on the website. This cannot be undone.") },
+            confirmButton = {
+                Button(onClick = {
+                    confirmRemove = false
+                    clearAll()
+                }) { Text("Remove") }
+            },
+            dismissButton = { TextButton(onClick = { confirmRemove = false }) { Text("Cancel") } },
+        )
     }
 
     editing?.let { line ->
